@@ -1,4 +1,4 @@
-Pride is a console based IDE.
+Pride is a console based Python IDE.
 
 It was developed based on teaching Python to 9-10 year old students with [Raspberry Pis](https://www.raspberrypi.org/).
 I found the following issues:
