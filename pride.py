@@ -108,7 +108,7 @@ class TextView:
     def handle_key (self, key):
         if key == 'KEY_BACKSPACE':
             self.backspace ()
-        elif key == 'KEY_DELETE':
+        elif key == 'KEY_DC':
             self.delete ()
         elif key == 'KEY_LEFT':
             self.left ()
@@ -131,6 +131,7 @@ class Console:
     def __init__ (self):
         self.pid = 0
         self.cursor = (0, 0)
+        self.lines = []
 
     def run (self, args):
         self.buffer = ''
@@ -147,23 +148,161 @@ class Console:
         except:
             os.close (self.fd)
 
+        # Process data
+        while self.buffer != '':
+            c = self.buffer[0]
+            #open ('debug.log', 'a').write ('Character {}\n'.format (ord (c)))
+            if c == '\033':
+                if len (self.buffer) == 1:
+                    return
+                # ANSI CSI
+                if self.buffer[1] == '[':
+                    # Find end characters
+                    end = 2
+                    def is_csi_end (c):
+                        n = ord (c)
+                        return n >= 0x40 and n <= 0x7F;
+                    while end < len (self.buffer) and not is_csi_end (self.buffer[end]):
+                        end += 1
+                    if end >= len (self.buffer):
+                        return # Not got full sequence, wait for more data
+
+                    code = self.buffer[end]
+                    params = self.buffer[2:end]
+                    #open ('debug.log', 'a').write ('CSI code={} params={}\n'.format (code, params))
+                    self.buffer = self.buffer[end + 1:]
+                    if code == 'A': # CUU - cursor up
+                        count = 1
+                        if params != '':
+                            count = int (param)
+                        self.up (count)
+                    elif code == 'B': # CUD - cursor down
+                        count = 1
+                        if params != '':
+                            count = int (param)
+                        self.down (count)
+                    elif code == 'C': # CUF - cursor right
+                        count = 1
+                        if params != '':
+                            count = int (param)
+                        self.right (count)
+                    elif code == 'D': # CUB - cursor left
+                        count = 1
+                        if params != '':
+                            count = int (param)
+                        self.left (count)
+                    elif code == 'H': # CUP - cursor position
+                        line = 1
+                        col = 1
+                        if params != '':
+                            args = params.split (';')
+                            if len (args) > 0:
+                                line = int (args[0])
+                            if len (args) > 1:
+                                col = int (args[1])
+                        self.cursor = (line - 1, col - 1)
+                    elif code == 'J': # ED - erase display
+                        mode = params
+                        if mode == '' or mode == '0': # Erase cursor to end of display
+                            open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
+                        elif mode == '1': # Erase from start to cursor (inclusive)
+                            open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
+                        elif mode == '2': # Erase whole display
+                            self.lines = []
+                        else:
+                            open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
+                    elif code == 'K': # EL - erase line
+                        mode = params
+                        if mode == '' or mode == '0':
+                            self.erase (self.cursor[1])
+                        elif mode == '1':
+                            self.erase (0, self.cursor[1])
+                        elif mode == '2':
+                            self.erase (0)
+                        else:
+                            open ('debug.log', 'a').write ('Unknown EL mode={}\n'.format (params))
+                    elif code == 'P': # DCH - delete characters
+                        count = 1
+                        if params != '':
+                            count = int (params)
+                        self.erase (self.cursor[1], self.cursor[1] + count);
+                    else:
+                        open ('debug.log', 'a').write ('Unknown CSI code={} params={}\n'.format (code, params))
+                else:
+                    # FIXME
+                    open ('debug.log', 'a').write ('Unknown escape code {}\n'.format (ord (c)))
+                    self.buffer = self.buffer[1:]
+            elif c == '\b': # BS
+                self.left (1)
+                self.buffer = self.buffer[1:]
+            elif c == '\a': # BEL
+                # FIXME: Flash bell symbol or similar?
+                self.buffer = self.buffer[1:]
+            elif c == '\r': # CR
+                self.cursor = (self.cursor[0], 0)
+                self.buffer = self.buffer[1:]
+            elif c == '\n': # LF
+                self.cursor = (self.cursor[0] + 1, 0)
+                self.buffer = self.buffer[1:]
+            elif ord (c) >= 0x20 and ord (c) <= 0x7E:
+                self.insert (c)
+                self.buffer = self.buffer[1:]
+            elif ord (c) & 0x80 != 0: # UTF-8
+                open ('debug.log', 'a').write ('FIXME: UTF-8\n')
+            else:
+                open ('debug.log', 'a').write ('Unknown character {}\n'.format (ord (c)))
+                self.buffer = self.buffer[1:]
+
+    def left (self, count):
+        count = min (count, self.cursor[1])
+        self.cursor = (self.cursor[0], self.cursor[1] - count)
+
+    def right (self, count):
+        #FIXME: count = min (count, width - cursor[1])
+        self.cursor = (self.cursor[0], self.cursor[1] + count)
+
+    def up (self, count):
+        count = min (count, self.cursor[0])
+        self.cursor = (self.cursor[0] - count, self.cursor[1])
+
+    def down (self, count):
+        #FIXME: count = min (count, height - cursor[0])
+        self.cursor = (self.cursor[0] + count, self.cursor[1])
+
+    # Ensure line exists to current cursor position
+    def ensure_line (self):
+        row = self.cursor[0]
+        while len (self.lines) <= row:
+            self.lines.append ('')
+        while len (self.lines[row]) < self.cursor[1]:
+            self.lines[row] += ' '
+
+    def erase (self, start, end = -1):
+        self.ensure_line ()
+        row = self.cursor[0]
+        col = self.cursor[1]
+        line = self.lines[row]
+        self.lines[row] = line[:start]
+        if end >= 0:
+            self.lines[row] += line[end:]
+
+    def insert (self, text):
+        self.ensure_line ()
+        row = self.cursor[0]
+        col = self.cursor[1]
+        line = self.lines[row]
+        self.lines[row] = line[:col] + text + line[col + len (text):]
+        self.cursor = (self.cursor[0], self.cursor[1] + len (text))
+
     def get_cursor (self):
-        return (0, 0) # FIXME
+        return self.cursor
 
     def render (self, width, height):
         lines = []
-        offset = 0
         for line in range (height):
             text = ''
-            while offset < len (self.buffer):
-                if self.buffer[offset] == '\r':
-                    offset += 1
-                    continue
-                if self.buffer[offset] == '\n':
-                    offset += 1
-                    break
-                text += self.buffer[offset]
-                offset += 1
+            if line < len (self.lines):
+                text = self.lines[line]
             while len (text) < width:
                 text += ' '
             lines.append (text[:width])
@@ -174,7 +313,7 @@ class Console:
             os.write (self.fd, key.encode ('utf-8'))
         elif key == 'KEY_BACKSPACE':
             os.write (self.fd, '\b'.encode ('ascii'))
-        elif key == 'KEY_DELETE':
+        elif key == 'KEY_DC':
             os.write (self.fd, '\033[3~'.encode ('ascii'))
         elif key == 'KEY_UP':
             os.write (self.fd, '\033[A'.encode ('ascii'))
