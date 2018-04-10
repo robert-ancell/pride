@@ -124,8 +124,12 @@ class TextView:
             self.end ()
         elif key == '\t':
             self.insert ('    ')
-        elif len (key) == 1:
+        elif len (key) == 1 and ord (key) >= 0x20 and ord (key) <= 0x7E:
             self.insert (key)
+        elif len (key) == 1 and ord (key) & 0x80 != 0: # UTF-8
+            open ('debug.log', 'a').write ('FIXME: UTF-8\n')
+        else:
+            open ('debug.log', 'a').write ('Unhandled key {}\n'.format (repr (key)))
 
 class Console:
     def __init__ (self):
