@@ -150,6 +150,8 @@ class TextView:
             self.end ()
         elif key == '\t':
             self.insert ('    ')
+        elif key == '\n':
+            self.insert ('\n')
         elif len (key) == 1 and ord (key) >= 0x20 and ord (key) <= 0x7E:
             self.insert (key)
         elif len (key) == 1 and ord (key) & 0x80 != 0: # UTF-8
