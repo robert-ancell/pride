@@ -103,6 +103,9 @@ class TextView:
         self.buffer = buffer
         self.cursor = (0, 0)
 
+    def get_current_line_length (self):
+        return self.buffer.get_line_length (self.cursor[0])
+
     def anchor_cursor (self):
         self.cursor = (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()))
 
@@ -112,10 +115,12 @@ class TextView:
         self.cursor = (self.cursor[0], self.cursor[1] + len (text))
 
     def newline (self):
+        self.anchor_cursor ();
         self.buffer.insert_newline (self.cursor[1], self.cursor[0])
         self.cursor = (self.cursor[0] + 1, 0)
 
     def backspace (self):
+        self.anchor_cursor ();
         if self.cursor[1] == 0:
             if self.cursor[0] > 0:
                 self.cursor = (self.cursor[0] - 1, len (self.buffer.lines[self.cursor[0] - 1]))
@@ -130,9 +135,6 @@ class TextView:
             self.buffer.merge_lines (self.cursor[0])
         else:
             self.buffer.delete (self.cursor[1], self.cursor[0], 1)
-
-    def get_current_line_length (self):
-        return self.buffer.get_line_length (self.cursor[0])
 
     def left (self):
         self.anchor_cursor ();
