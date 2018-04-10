@@ -425,14 +425,17 @@ class Pride:
         if self.fullscreen:
             if self.console_focus:
                 (cursor_y, cursor_x) = self.console.get_cursor ()
+                cursor_y += 1
             else:
                 (cursor_y, cursor_x) = self.editor.get_cursor ()
+                cursor_y += 1
         else:
             if self.console_focus:
                 (cursor_y, cursor_x) = self.console.get_cursor ()
                 cursor_y += max_lines // 2 + 1
             else:
                 (cursor_y, cursor_x) = self.editor.get_cursor ()
+                cursor_y += 1
         self.screen.move (cursor_y, cursor_x)
         self.screen.refresh ()
 
@@ -447,21 +450,27 @@ class Pride:
 
     def render (self, frame):
         editor_height = frame.height // 2
-        console_height = frame.height - editor_height - 1
+        console_height = frame.height - editor_height
 
         if self.fullscreen:
+            child_frame = Frame (frame.width, frame.height - 1)
             if self.console_focus:
-                self.console.render (frame)
+                frame.render_text (0, 0, 'Console)' + 'X' * (frame.width - 8))
+                self.console.render (child_frame)
             else:
-                self.editor.render (frame)
+                frame.render_text (0, 0, 'Editor)' + 'X' * (frame.width - 7))
+                self.editor.render (child_frame)
+            frame.composite (0, 1, child_frame)
         else:
-            editor_frame = Frame (frame.width, editor_height)
+            frame.render_text (0, 0, 'Editor)' + 'X' * (frame.width - 7))
+
+            editor_frame = Frame (frame.width, editor_height - 1)
             self.editor.render (editor_frame)
-            frame.composite (0, 0, editor_frame)
+            frame.composite (0, 1, editor_frame)
 
             frame.render_text (0, editor_height, 'Console)' + 'X' * (frame.width - 8))
 
-            console_frame = Frame (frame.width, console_height)
+            console_frame = Frame (frame.width, console_height - 1)
             self.console.render (console_frame)
             frame.composite (0, editor_height + 1, console_frame)
 
