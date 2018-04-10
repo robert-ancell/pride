@@ -155,15 +155,20 @@ class TextView:
     def end (self):
         self.cursor = (self.cursor[0], self.get_current_line_length ())
 
+    def get_line_number_column_width (self):
+        return len ('%d' % len (self.buffer.lines)) + 1
+
     def get_cursor (self):
-        return (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()) + 3)
+        return (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
 
     def render (self, frame):
         frame.clear ()
-        for y in range (len (self.buffer.lines)):
-            frame.render_text (0, y, '%2d' % (y + 1))
+        line_number_column_width = self.get_line_number_column_width ()
+        for y in range (min (len (self.buffer.lines), frame.height)):
+            line_number = '%d' % (y + 1)
+            frame.render_text (line_number_column_width - len (line_number) - 1, y, line_number)
         for (y, line) in enumerate (self.buffer.lines):
-            frame.render_text (3, y, line)
+            frame.render_text (line_number_column_width, y, line)
 
     def handle_key (self, key):
         if key == 'KEY_BACKSPACE':
