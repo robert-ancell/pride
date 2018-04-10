@@ -396,7 +396,7 @@ class Pride:
                 self.buffer.lines.append (line)
         except:
             pass
-        self.console.run (['python3'])
+        self.console.run (['python3', '-q'])
         self.sel.register (self.console.fd, selectors.EVENT_READ)
 
         self.refresh ()
@@ -459,7 +459,7 @@ class Pride:
             self.editor.render (editor_frame)
             frame.composite (0, 0, editor_frame)
 
-            frame.render_text (0, editor_height, 'Console ' + 'X' * (frame.width - 8))
+            frame.render_text (0, editor_height, 'Console)' + 'X' * (frame.width - 8))
 
             console_frame = Frame (frame.width, console_height)
             self.console.render (console_frame)
