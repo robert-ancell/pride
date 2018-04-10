@@ -160,7 +160,7 @@ class TextView:
 
     def render (self, frame):
         frame.clear ()
-        for y in range (frame.height):
+        for y in range (len (self.buffer.lines)):
             frame.render_text (0, y, '%2d' % (y + 1))
         for (y, line) in enumerate (self.buffer.lines):
             frame.render_text (3, y, line)
@@ -433,8 +433,7 @@ class Pride:
 
     def run_program (self):
         f = open ('main.py', 'w')
-        for line in self.buffer.lines:
-            f.write (line + '\n')
+        f.write ('\n'.join (self.buffer.lines))
         f.close ()
         if self.console.pid != 0:
             self.sel.unregister (self.console.fd)
