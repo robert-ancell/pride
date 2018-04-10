@@ -122,7 +122,7 @@ class TextView:
                 have_offset = True
             if not have_offset:
                 offset += 1
-        return (line, offset)
+        return (line, offset + 3)
 
     def render (self, frame):
         frame.clear ()
@@ -359,9 +359,10 @@ class Pride:
         self.screen = screen
         self.sel = selectors.DefaultSelector ()
         self.buffer = TextBuffer ()
-        self.view = TextView (self.buffer)
+        self.editor = TextView (self.buffer)
         self.console = Console ()
         self.console_focus = False
+        self.fullscreen = False
 
     def run (self):
         self.sel.register (sys.stdin, selectors.EVENT_READ)
@@ -395,12 +396,17 @@ class Pride:
                 text = text[:-1]
             self.screen.addstr (y, 0, text)
 
-        if self.console_focus:
-            (cursor_y, cursor_x) = self.console.get_cursor ()
-            cursor_y += max_lines // 2 + 1
+        if self.fullscreen:
+            if self.console_focus:
+                (cursor_y, cursor_x) = self.console.get_cursor ()
+            else:
+                (cursor_y, cursor_x) = self.editor.get_cursor ()
         else:
-            (cursor_y, cursor_x) = self.view.get_cursor ()
-            cursor_x += 3
+            if self.console_focus:
+                (cursor_y, cursor_x) = self.console.get_cursor ()
+                cursor_y += max_lines // 2 + 1
+            else:
+                (cursor_y, cursor_x) = self.editor.get_cursor ()
         self.screen.move (cursor_y, cursor_x)
         self.screen.refresh ()
 
@@ -415,24 +421,33 @@ class Pride:
         editor_height = frame.height // 2
         console_height = frame.height - editor_height - 1
 
-        editor_frame = Frame (frame.width, editor_height)
-        self.view.render (editor_frame)
-        console_frame = Frame (frame.width, console_height)
-        self.console.render (console_frame)
+        if self.fullscreen:
+            if self.console_focus:
+                self.console.render (frame)
+            else:
+                self.editor.render (frame)
+        else:
+            editor_frame = Frame (frame.width, editor_height)
+            self.editor.render (editor_frame)
+            frame.composite (0, 0, editor_frame)
 
-        frame.composite (0, 0, editor_frame)
-        frame.render_text (0, editor_height, 'X' * frame.width)
-        frame.composite (0, editor_height + 1, console_frame)
+            frame.render_text (0, editor_height, 'Console ' + 'X' * (frame.width - 8))
+
+            console_frame = Frame (frame.width, console_height)
+            self.console.render (console_frame)
+            frame.composite (0, editor_height + 1, console_frame)
 
     def handle_key (self, key):
         if key == 'KEY_F(4)':
             self.console_focus = not self.console_focus
         elif key == 'KEY_F(5)':
             self.run_program ()
+        elif key == 'KEY_F(8)': # F11?
+            self.fullscreen = not self.fullscreen
         elif self.console_focus:
             self.console.handle_key (key)
         else:
-            self.view.handle_key (key)
+            self.editor.handle_key (key)
 
 def main (screen):
     pride = Pride (screen)
