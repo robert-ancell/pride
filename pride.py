@@ -53,82 +53,114 @@ class Frame:
 
 class TextBuffer:
     def __init__ (self):
-        self.text = ''
+        self.lines = []
 
-    def insert (self, index, text):
-        self.text = self.text[:index] + text + self.text[index:]
+    def clear (self):
+        self.lines = []
 
-    def delete (self, index, count):
-        self.text = self.text[:index] + self.text[index + count:]
+    # Ensure lines exists to requested position
+    def ensure_line (self, x, y):
+        while len (self.lines) <= y:
+            self.lines.append ('')
+        while len (self.lines[y]) < x:
+            self.lines[y] += ' '
+
+    def get_line_length (self, y):
+        if y >= len (self.lines):
+            return 0
+        return len (self.lines[y])
+
+    def insert (self, x, y, text):
+        self.ensure_line (x, y)
+        line = self.lines[y]
+        self.lines[y] = line[:x] + text + line[x:]
+
+    def overwrite (self, x, y, text):
+        self.ensure_line (x, y)
+        line = self.lines[y]
+        self.lines[y] = line[:x] + text + line[x + len (text):]
+
+    def insert_newline (self, x, y):
+        self.ensure_line (x, y)
+        line = self.lines[y]
+        self.lines[y] = line[:x]
+        self.lines.insert (y + 1, line[x:])
+
+    def merge_lines (self, y):
+        if y + 1 >= len (self.lines):
+            return
+        self.lines[y] = self.lines[y] + self.lines[y + 1]
+        self.lines.pop (y + 1)
+
+    def delete (self, x, y, count):
+        if y >= len (self.lines):
+            return
+        line = self.lines[y]
+        self.lines[y] = line[:x] + line[x + count:]
 
 class TextView:
     def __init__ (self, buffer):
         self.buffer = buffer
-        self.cursor = 0
+        self.cursor = (0, 0)
+
+    def anchor_cursor (self):
+        self.cursor = (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()))
 
     def insert (self, text):
-        self.buffer.insert (self.cursor, text)
-        self.cursor += len (text)
+        self.anchor_cursor ();
+        self.buffer.insert (self.cursor[1], self.cursor[0], text)
+        self.cursor = (self.cursor[0], self.cursor[1] + len (text))
+
+    def newline (self):
+        self.buffer.insert_newline (self.cursor[1], self.cursor[0])
+        self.cursor = (self.cursor[0] + 1, 0)
 
     def backspace (self):
-        if self.cursor == 0:
-            return
-        self.buffer.delete (self.cursor - 1, 1)
-        self.cursor -= 1
+        if self.cursor[1] == 0:
+            if self.cursor[0] > 0:
+                self.cursor = (self.cursor[0] - 1, len (self.buffer.lines[self.cursor[0] - 1]))
+                self.buffer.merge_lines (self.cursor[0])
+        else:
+            self.buffer.delete (self.cursor[1] - 1, self.cursor[0], 1)
+            self.cursor = (self.cursor[0], self.cursor[1] - 1)
 
     def delete (self):
-        self.buffer.delete (self.cursor, 1)
+        self.anchor_cursor ();
+        if self.cursor[1] == self.get_current_line_length ():
+            self.buffer.merge_lines (self.cursor[0])
+        else:
+            self.buffer.delete (self.cursor[1], self.cursor[0], 1)
+
+    def get_current_line_length (self):
+        return self.buffer.get_line_length (self.cursor[0])
 
     def left (self):
-        self.cursor -= 1
+        self.anchor_cursor ();
+        self.cursor = (self.cursor[0], max (self.cursor[1] - 1, 0))
 
     def right (self):
-        if self.cursor < len (self.buffer.text):
-            self.cursor += 1
+        self.cursor = (self.cursor[0], min (self.cursor[1] + 1, self.get_current_line_length ()))
 
     def up (self):
-        while self.cursor > 0:
-            self.cursor -= 1
-            if self.buffer.text[self.cursor] == '\n':
-                return
+        self.cursor = (max (self.cursor[0] - 1, 0), self.cursor[1])
 
     def down (self):
-        while self.cursor < len (self.buffer.text):
-            self.cursor += 1
-            if self.cursor == len (self.buffer.text) or self.buffer.text[self.cursor] == '\n':
-                return
+        self.cursor = (min (self.cursor[0] + 1, len (self.buffer.lines) - 1), self.cursor[1])
 
     def home (self):
-        while self.cursor > 0:
-            if self.buffer.text[self.cursor - 1] == '\n':
-                return
-            self.cursor -= 1
+        self.cursor = (self.cursor[0], 0)
 
     def end (self):
-        while self.cursor < len (self.buffer.text):
-            if self.buffer.text[self.cursor] == '\n':
-                return
-            self.cursor += 1
+        self.cursor = (self.cursor[0], self.get_current_line_length ())
 
     def get_cursor (self):
-        line = 0
-        offset = 0
-        have_offset = False
-        c = self.cursor
-        while c > 0:
-            c -= 1
-            if self.buffer.text[c] == '\n':
-                line += 1
-                have_offset = True
-            if not have_offset:
-                offset += 1
-        return (line, offset + 3)
+        return (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()) + 3)
 
     def render (self, frame):
         frame.clear ()
         for y in range (frame.height):
             frame.render_text (0, y, '%2d' % (y + 1))
-        for (y, line) in enumerate (self.buffer.text.split ('\n')):
+        for (y, line) in enumerate (self.buffer.lines):
             frame.render_text (3, y, line)
 
     def handle_key (self, key):
@@ -151,7 +183,7 @@ class TextView:
         elif key == '\t':
             self.insert ('    ')
         elif key == '\n':
-            self.insert ('\n')
+            self.newline ()
         elif len (key) == 1 and ord (key) >= 0x20 and ord (key) <= 0x7E:
             self.insert (key)
         elif len (key) == 1 and ord (key) & 0x80 != 0: # UTF-8
@@ -163,10 +195,10 @@ class Console:
     def __init__ (self):
         self.pid = 0
         self.cursor = (0, 0)
-        self.lines = []
+        self.buffer = TextBuffer ()
 
     def run (self, args):
-        self.buffer = ''
+        self.read_buffer = ''
         if self.pid != 0:
             os.kill (self.pid, signal.SIGTERM)
         (self.pid, self.fd) = pty.fork ()
@@ -176,33 +208,33 @@ class Console:
 
     def read (self):
         try:
-            self.buffer += os.read (self.fd, 65535).decode ('utf-8')
+            self.read_buffer += os.read (self.fd, 65535).decode ('utf-8')
         except:
             os.close (self.fd)
 
         # Process data
-        while self.buffer != '':
-            c = self.buffer[0]
+        while self.read_buffer != '':
+            c = self.read_buffer[0]
             #open ('debug.log', 'a').write ('Character {}\n'.format (ord (c)))
             if c == '\033':
-                if len (self.buffer) == 1:
+                if len (self.read_buffer) == 1:
                     return
                 # ANSI CSI
-                if self.buffer[1] == '[':
+                if self.read_buffer[1] == '[':
                     # Find end characters
                     end = 2
                     def is_csi_end (c):
                         n = ord (c)
                         return n >= 0x40 and n <= 0x7F;
-                    while end < len (self.buffer) and not is_csi_end (self.buffer[end]):
+                    while end < len (self.read_buffer) and not is_csi_end (self.read_buffer[end]):
                         end += 1
-                    if end >= len (self.buffer):
+                    if end >= len (self.read_buffer):
                         return # Not got full sequence, wait for more data
 
-                    code = self.buffer[end]
-                    params = self.buffer[2:end]
+                    code = self.read_buffer[end]
+                    params = self.read_buffer[2:end]
                     #open ('debug.log', 'a').write ('CSI code={} params={}\n'.format (code, params))
-                    self.buffer = self.buffer[end + 1:]
+                    self.read_buffer = self.read_buffer[end + 1:]
                     if code == 'A': # CUU - cursor up
                         count = 1
                         if params != '':
@@ -240,50 +272,51 @@ class Console:
                         elif mode == '1': # Erase from start to cursor (inclusive)
                             open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
                         elif mode == '2': # Erase whole display
-                            self.lines = []
+                            self.buffer.clear ()
                         else:
                             open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
                     elif code == 'K': # EL - erase line
                         mode = params
                         if mode == '' or mode == '0':
-                            self.erase (self.cursor[1])
+                            self.erase_line (self.cursor[1], self.get_current_line_length ())
                         elif mode == '1':
-                            self.erase (0, self.cursor[1])
+                            self.erase_line (0, self.cursor[1])
                         elif mode == '2':
-                            self.erase (0)
+                            self.erase_line (0, self.get_current_line_length ())
                         else:
                             open ('debug.log', 'a').write ('Unknown EL mode={}\n'.format (params))
                     elif code == 'P': # DCH - delete characters
                         count = 1
                         if params != '':
                             count = int (params)
-                        self.erase (self.cursor[1], self.cursor[1] + count);
+                        self.erase_line (self.cursor[1], min (self.cursor[1] + count, self.get_current_line_length ()));
                     else:
                         open ('debug.log', 'a').write ('Unknown CSI code={} params={}\n'.format (code, params))
                 else:
                     # FIXME
                     open ('debug.log', 'a').write ('Unknown escape code {}\n'.format (ord (c)))
-                    self.buffer = self.buffer[1:]
+                    self.read_buffer = self.read_buffer[1:]
             elif c == '\b': # BS
                 self.left (1)
-                self.buffer = self.buffer[1:]
+                self.read_buffer = self.read_buffer[1:]
             elif c == '\a': # BEL
                 # FIXME: Flash bell symbol or similar?
-                self.buffer = self.buffer[1:]
+                self.read_buffer = self.read_buffer[1:]
             elif c == '\r': # CR
                 self.cursor = (self.cursor[0], 0)
-                self.buffer = self.buffer[1:]
+                self.read_buffer = self.read_buffer[1:]
             elif c == '\n': # LF
                 self.cursor = (self.cursor[0] + 1, 0)
-                self.buffer = self.buffer[1:]
+                self.read_buffer = self.read_buffer[1:]
             elif ord (c) >= 0x20 and ord (c) <= 0x7E:
                 self.insert (c)
-                self.buffer = self.buffer[1:]
+                self.read_buffer = self.read_buffer[1:]
             elif ord (c) & 0x80 != 0: # UTF-8
                 open ('debug.log', 'a').write ('FIXME: UTF-8\n')
+                self.read_buffer = self.read_buffer[1:]
             else:
                 open ('debug.log', 'a').write ('Unknown character {}\n'.format (ord (c)))
-                self.buffer = self.buffer[1:]
+                self.read_buffer = self.read_buffer[1:]
 
     def left (self, count):
         count = min (count, self.cursor[1])
@@ -301,29 +334,14 @@ class Console:
         #FIXME: count = min (count, height - cursor[0])
         self.cursor = (self.cursor[0] + count, self.cursor[1])
 
-    # Ensure line exists to current cursor position
-    def ensure_line (self):
-        row = self.cursor[0]
-        while len (self.lines) <= row:
-            self.lines.append ('')
-        while len (self.lines[row]) < self.cursor[1]:
-            self.lines[row] += ' '
+    def get_current_line_length (self):
+        return self.buffer.get_line_length (self.cursor[0])
 
-    def erase (self, start, end = -1):
-        self.ensure_line ()
-        row = self.cursor[0]
-        col = self.cursor[1]
-        line = self.lines[row]
-        self.lines[row] = line[:start]
-        if end >= 0:
-            self.lines[row] += line[end:]
+    def erase_line (self, start, end):
+        self.buffer.delete (start, self.cursor[0], end - start)
 
     def insert (self, text):
-        self.ensure_line ()
-        row = self.cursor[0]
-        col = self.cursor[1]
-        line = self.lines[row]
-        self.lines[row] = line[:col] + text + line[col + len (text):]
+        self.buffer.overwrite (self.cursor[1], self.cursor[0], text)
         self.cursor = (self.cursor[0], self.cursor[1] + len (text))
 
     def get_cursor (self):
@@ -331,7 +349,7 @@ class Console:
 
     def render (self, frame):
         frame.clear ()
-        for (y, line) in enumerate (self.lines):
+        for (y, line) in enumerate (self.buffer.lines):
             frame.render_text (0, y, line)
 
     def handle_key (self, key):
@@ -367,7 +385,8 @@ class Pride:
     def run (self):
         self.sel.register (sys.stdin, selectors.EVENT_READ)
         try:
-            self.buffer.text = open ('main.py').read ()
+            for line in open ('main.py').read ().split ('\n'):
+                self.buffer.lines.append (line)
         except:
             pass
         self.console.run (['python3'])
@@ -411,7 +430,10 @@ class Pride:
         self.screen.refresh ()
 
     def run_program (self):
-        open ('main.py', 'w').write (self.buffer.text)
+        f = open ('main.py', 'w')
+        for line in self.buffer.lines:
+            f.write (line + '\n')
+        f.close ()
         if self.console.pid != 0:
             self.sel.unregister (self.console.fd)
         self.console.run (['python3', 'main.py'])
