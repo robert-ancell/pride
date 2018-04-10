@@ -16,6 +16,41 @@ import pty
 import subprocess
 import signal
 
+class Frame:
+    def __init__ (self, width, height):
+        self.width = width
+        self.height = height
+        self.buffer = []
+        for y in range (height):
+            self.buffer.append ([' '] * width)
+
+    def clear (self):
+        self.fill (0, 0, self.width, self.height, ' ')
+
+    def fill (self, x, y, width, height, value):
+        for y_ in range (y, height):
+            for x_ in range (x, width):
+                self.buffer[y_][x_] = value
+
+    def composite (self, x, y, frame):
+        # FIXME: Make SubFrame that re-uses buffer?
+        width = min (self.width - x, frame.width)
+        height = min (self.height - y, frame.height)
+        for y_ in range (height):
+            source_line = frame.buffer[y_]
+            target_line = self.buffer[y + y_]
+            for x_ in range (width):
+                target_line[x + x_] = source_line[x_]
+
+    def render_text (self, x, y, text):
+        if y >= self.height:
+            return
+        line = self.buffer[y]
+        for (i, c) in enumerate (text):
+            if x + i >= self.width:
+                return
+            line[x + i] = c
+
 class TextBuffer:
     def __init__ (self):
         self.text = ''
@@ -89,21 +124,12 @@ class TextView:
                 offset += 1
         return (line, offset)
 
-    def render (self, width, height):
-        lines = []
-        offset = 0
-        for line in range (height):
-            text = '%2d ' % line
-            while offset < len (self.buffer.text):
-                if self.buffer.text[offset] == '\n':
-                    offset += 1
-                    break
-                text += self.buffer.text[offset]
-                offset += 1
-            while len (text) < width:
-                text += ' '
-            lines.append (text[:width])
-        return lines
+    def render (self, frame):
+        frame.clear ()
+        for y in range (frame.height):
+            frame.render_text (0, y, '%2d' % (y + 1))
+        for (y, line) in enumerate (self.buffer.text.split ('\n')):
+            frame.render_text (3, y, line)
 
     def handle_key (self, key):
         if key == 'KEY_BACKSPACE':
@@ -301,16 +327,10 @@ class Console:
     def get_cursor (self):
         return self.cursor
 
-    def render (self, width, height):
-        lines = []
-        for line in range (height):
-            text = ''
-            if line < len (self.lines):
-                text = self.lines[line]
-            while len (text) < width:
-                text += ' '
-            lines.append (text[:width])
-        return lines
+    def render (self, frame):
+        frame.clear ()
+        for (y, line) in enumerate (self.lines):
+            frame.render_text (0, y, line)
 
     def handle_key (self, key):
         if len (key) == 1:
@@ -363,12 +383,15 @@ class Pride:
 
     def refresh (self):
         (max_lines, max_width) = self.screen.getmaxyx ()
-        lines = self.render (max_width, max_lines)
-        for (line, text) in enumerate (lines):
-            trim = 0 # FIXME: Can't set lower right for some reason...
-            if line == max_lines - 1:
-                trim = 1
-            self.screen.addstr (line, 0, text[:max_width - trim])
+        frame = Frame (max_width, max_lines)
+        self.render (frame)
+        for y in range (frame.height):
+            text = ''
+            for x in range (frame.width):
+                text += frame.buffer[y][x]
+            if y == frame.height - 1:
+                text = text[:-1]
+            self.screen.addstr (y, 0, text)
 
         if self.console_focus:
             (cursor_y, cursor_x) = self.console.get_cursor ()
@@ -386,15 +409,18 @@ class Pride:
         self.console.run (['python3', 'main.py'])
         self.sel.register (self.console.fd, selectors.EVENT_READ)
 
-    def render (self, width, height):
-        editor_height = height // 2
-        console_height = height - editor_height - 1
+    def render (self, frame):
+        editor_height = frame.height // 2
+        console_height = frame.height - editor_height - 1
 
-        # FIXME: Render into buffer
-        view_lines = self.view.render (width, editor_height)
-        console_lines = self.console.render (width, console_height)
+        editor_frame = Frame (frame.width, editor_height)
+        self.view.render (editor_frame)
+        console_frame = Frame (frame.width, console_height)
+        self.console.render (console_frame)
 
-        return view_lines + ['X' * width] + console_lines
+        frame.composite (0, 0, editor_frame)
+        frame.render_text (0, editor_height, 'X' * frame.width)
+        frame.composite (0, editor_height + 1, console_frame)
 
     def handle_key (self, key):
         if key == 'KEY_F(4)':
