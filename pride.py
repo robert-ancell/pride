@@ -155,6 +155,12 @@ class TextView:
     def end (self):
         self.cursor = (self.cursor[0], self.get_current_line_length ())
 
+    def next_page (self):
+        self.cursor = (len (self.buffer.lines) - 1, self.cursor[1])
+
+    def prev_page (self):
+        self.cursor = (0, self.cursor[1])
+
     def get_line_number_column_width (self):
         return len ('%d' % len (self.buffer.lines)) + 1
 
@@ -187,6 +193,10 @@ class TextView:
             self.home ()
         elif key == 'KEY_END':
             self.end ()
+        elif key == 'KEY_NPAGE':
+            self.next_page ()
+        elif key == 'KEY_PPAGE':
+            self.prev_page ()
         elif key == '\t':
             self.insert ('    ')
         elif key == '\n':
@@ -196,7 +206,7 @@ class TextView:
         elif len (key) == 1 and ord (key) & 0x80 != 0: # UTF-8
             open ('debug.log', 'a').write ('FIXME: UTF-8\n')
         else:
-            open ('debug.log', 'a').write ('Unhandled key {}\n'.format (repr (key)))
+            open ('debug.log', 'a').write ('Unhandled editor key {}\n'.format (repr (key)))
 
 class Console:
     def __init__ (self):
@@ -206,6 +216,11 @@ class Console:
 
     def run (self, args):
         self.read_buffer = ''
+        last_line = 0
+        for (i, line) in enumerate (self.buffer.lines):
+            if line != '':
+                last_line = i
+        self.cursor = (last_line, 0)
         if self.pid != 0:
             os.kill (self.pid, signal.SIGTERM)
         (self.pid, self.fd) = pty.fork ()
@@ -217,7 +232,8 @@ class Console:
         try:
             self.read_buffer += os.read (self.fd, 65535).decode ('utf-8')
         except:
-            os.close (self.fd)
+            os.close (self.fd) # FIXME: Should unregister fd
+            return False
 
         # Process data
         while self.read_buffer != '':
@@ -225,7 +241,7 @@ class Console:
             #open ('debug.log', 'a').write ('Character {}\n'.format (ord (c)))
             if c == '\033':
                 if len (self.read_buffer) == 1:
-                    return
+                    return True
                 # ANSI CSI
                 if self.read_buffer[1] == '[':
                     # Find end characters
@@ -236,7 +252,7 @@ class Console:
                     while end < len (self.read_buffer) and not is_csi_end (self.read_buffer[end]):
                         end += 1
                     if end >= len (self.read_buffer):
-                        return # Not got full sequence, wait for more data
+                        return True # Not got full sequence, wait for more data
 
                     code = self.read_buffer[end]
                     params = self.read_buffer[2:end]
@@ -285,18 +301,18 @@ class Console:
                     elif code == 'K': # EL - erase line
                         mode = params
                         if mode == '' or mode == '0':
-                            self.erase_line (self.cursor[1], self.get_current_line_length ())
+                            self.buffer.delete (self.cursor[1], self.cursor[0], 9999) # FIXME: End of line...
                         elif mode == '1':
-                            self.erase_line (0, self.cursor[1])
+                            self.buffer.delete (0, self.cursor[0], self.cursor[1])
                         elif mode == '2':
-                            self.erase_line (0, self.get_current_line_length ())
+                            self.buffer.delete (0, self.cursor[0], 9999) # FIXME: End of line...
                         else:
                             open ('debug.log', 'a').write ('Unknown EL mode={}\n'.format (params))
                     elif code == 'P': # DCH - delete characters
                         count = 1
                         if params != '':
                             count = int (params)
-                        self.erase_line (self.cursor[1], min (self.cursor[1] + count, self.get_current_line_length ()));
+                        self.buffer.delete (self.cursor[1], self.cursor[0], count)
                     else:
                         open ('debug.log', 'a').write ('Unknown CSI code={} params={}\n'.format (code, params))
                 else:
@@ -316,7 +332,8 @@ class Console:
                 self.cursor = (self.cursor[0] + 1, 0)
                 self.read_buffer = self.read_buffer[1:]
             elif ord (c) >= 0x20 and ord (c) <= 0x7E:
-                self.insert (c)
+                self.buffer.overwrite (self.cursor[1], self.cursor[0], c)
+                self.cursor = (self.cursor[0], self.cursor[1] + 1)
                 self.read_buffer = self.read_buffer[1:]
             elif ord (c) & 0x80 != 0: # UTF-8
                 open ('debug.log', 'a').write ('FIXME: UTF-8\n')
@@ -324,6 +341,8 @@ class Console:
             else:
                 open ('debug.log', 'a').write ('Unknown character {}\n'.format (ord (c)))
                 self.read_buffer = self.read_buffer[1:]
+
+        return True
 
     def left (self, count):
         count = min (count, self.cursor[1])
@@ -340,16 +359,6 @@ class Console:
     def down (self, count):
         #FIXME: count = min (count, height - cursor[0])
         self.cursor = (self.cursor[0] + count, self.cursor[1])
-
-    def get_current_line_length (self):
-        return self.buffer.get_line_length (self.cursor[0])
-
-    def erase_line (self, start, end):
-        self.buffer.delete (start, self.cursor[0], end - start)
-
-    def insert (self, text):
-        self.buffer.overwrite (self.cursor[1], self.cursor[0], text)
-        self.cursor = (self.cursor[0], self.cursor[1] + len (text))
 
     def get_cursor (self):
         return self.cursor
@@ -407,7 +416,12 @@ class Pride:
                     key = self.screen.getkey ()
                     self.handle_key (key)
                 elif key.fd == self.console.fd:
-                    self.console.read ()
+                    if not self.console.read ():
+                        pass
+                        # FIXME
+                        #self.sel.unregister (self.console.fd)
+                        #self.console.run (['python3', '-q'])
+                        #self.sel.register (self.console.fd, selectors.EVENT_READ)
             self.refresh ()
 
     def refresh (self):
@@ -432,7 +446,7 @@ class Pride:
         else:
             if self.console_focus:
                 (cursor_y, cursor_x) = self.console.get_cursor ()
-                cursor_y += max_lines // 2 + 1
+                cursor_y += (max_lines // 2) + 1
             else:
                 (cursor_y, cursor_x) = self.editor.get_cursor ()
                 cursor_y += 1
