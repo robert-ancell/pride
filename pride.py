@@ -16,6 +16,19 @@ import pty
 import subprocess
 import signal
 
+class Widget:
+    def __init__ (self):
+        self.visible = True
+
+    def get_size (self):
+        return (0, 0)
+
+    def handle_key (self, key):
+        pass
+
+    def render (self, frame):
+        pass
+
 class Frame:
     def __init__ (self, width, height):
         self.width = width
@@ -23,6 +36,7 @@ class Frame:
         self.buffer = []
         for y in range (height):
             self.buffer.append ([' '] * width)
+        self.cursor = (0, 0)
 
     def clear (self):
         self.fill (0, 0, self.width, self.height, ' ')
@@ -50,6 +64,84 @@ class Frame:
             if x + i >= self.width:
                 return
             line[x + i] = c
+
+class List (Widget):
+    def __init__ (self):
+        Widget.__init__ (self)
+        self.focus_child = None
+        self.children = []
+
+    def insert (self, child, index):
+        self.children = self.children[:index] + [child] + self.children[index:]
+
+    def append (self, child):
+        self.insert (child, len (self.children))
+
+    def focus (self, child):
+        self.focus_child = child
+
+    def handle_key (self, key):
+        if self.focus_child is None:
+            return
+        self.focus_child.handle_key (key)
+
+    def render (self, frame):
+        visible_children = []
+        for child in self.children:
+            if child.visible:
+                visible_children.append (child)
+
+        # Allocate space for children
+        n_unallocated = 0
+        n_remaining = frame.height
+        child_heights = {}
+        for child in visible_children:
+            size = child.get_size ()
+            if size[0] == 0:
+                n_unallocated += 1
+            child_heights[child] = size[0]
+            n_remaining -= size[0]
+
+        # Divide remaining space between children
+        if n_unallocated != 0 and n_remaining > 0:
+            # FIXME: Use per widget weighting 0.0 - 1.0
+            height_per_child = n_remaining // n_unallocated
+            extra = n_remaining - height_per_child * n_unallocated
+            for child in visible_children:
+                if child_heights[child] == 0:
+                    child_heights[child] = height_per_child
+                    if extra > 0:
+                        child_heights[child] += 1
+                        extra -= 1
+
+        line_offset = 0
+        for child in visible_children:
+            height = child_heights[child]
+            child_frame = Frame (frame.width, height)
+            child.render (child_frame)
+            frame.composite (0, line_offset, child_frame)
+            if child is self.focus_child:
+                frame.cursor = (line_offset + child_frame.cursor[0], child_frame.cursor[1])
+            line_offset += height
+
+class Bar (Widget):
+    def __init__ (self, title = ''):
+        Widget.__init__ (self)
+        self.title = title
+
+    def set_title (self, text):
+        self.title = title
+
+    def get_size (self):
+        return (1, 0)
+
+    def render (self, frame):
+        text = ''
+        if self.title != '':
+            text = self.title
+        while len (text) < frame.width:
+            text += 'X'
+        frame.render_text (0, 0, text)
 
 class TextBuffer:
     def __init__ (self):
@@ -98,10 +190,12 @@ class TextBuffer:
         line = self.lines[y]
         self.lines[y] = line[:x] + line[x + count:]
 
-class TextView:
+class TextView (Widget):
     def __init__ (self, buffer):
+        Widget.__init__ (self)
         self.buffer = buffer
         self.cursor = (0, 0)
+        self.start_line = 0
 
     def get_current_line_length (self):
         return self.buffer.get_line_length (self.cursor[0])
@@ -164,9 +258,6 @@ class TextView:
     def get_line_number_column_width (self):
         return len ('%d' % len (self.buffer.lines)) + 1
 
-    def get_cursor (self):
-        return (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
-
     def render (self, frame):
         frame.clear ()
         line_number_column_width = self.get_line_number_column_width ()
@@ -175,6 +266,7 @@ class TextView:
             frame.render_text (line_number_column_width - len (line_number) - 1, y, line_number)
         for (y, line) in enumerate (self.buffer.lines):
             frame.render_text (line_number_column_width, y, line)
+        frame.cursor = (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
 
     def handle_key (self, key):
         if key == 'KEY_BACKSPACE':
@@ -208,8 +300,9 @@ class TextView:
         else:
             open ('debug.log', 'a').write ('Unhandled editor key {}\n'.format (repr (key)))
 
-class Console:
+class Console (Widget):
     def __init__ (self):
+        Widget.__init__ (self)
         self.pid = 0
         self.cursor = (0, 0)
         self.buffer = TextBuffer ()
@@ -360,13 +453,11 @@ class Console:
         #FIXME: count = min (count, height - cursor[0])
         self.cursor = (self.cursor[0] + count, self.cursor[1])
 
-    def get_cursor (self):
-        return self.cursor
-
     def render (self, frame):
         frame.clear ()
         for (y, line) in enumerate (self.buffer.lines):
             frame.render_text (0, y, line)
+        frame.cursor = self.cursor
 
     def handle_key (self, key):
         if len (key) == 1:
@@ -392,11 +483,22 @@ class Pride:
     def __init__ (self, screen):
         self.screen = screen
         self.sel = selectors.DefaultSelector ()
+        self.fullscreen = False
+
+        self.main_list = List ()
+
+        self.editor_bar = Bar ('Editor)')
         self.buffer = TextBuffer ()
         self.editor = TextView (self.buffer)
+        self.main_list.append (self.editor_bar)
+        self.main_list.append (self.editor)
+
+        self.console_bar = Bar ('Console)')
         self.console = Console ()
-        self.console_focus = False
-        self.fullscreen = False
+        self.main_list.append (self.console_bar)
+        self.main_list.append (self.console)
+
+        self.main_list.focus (self.editor)
 
     def run (self):
         self.sel.register (sys.stdin, selectors.EVENT_READ)
@@ -427,7 +529,7 @@ class Pride:
     def refresh (self):
         (max_lines, max_width) = self.screen.getmaxyx ()
         frame = Frame (max_width, max_lines)
-        self.render (frame)
+        self.main_list.render (frame)
         for y in range (frame.height):
             text = ''
             for x in range (frame.width):
@@ -436,20 +538,7 @@ class Pride:
                 text = text[:-1]
             self.screen.addstr (y, 0, text)
 
-        if self.fullscreen:
-            if self.console_focus:
-                (cursor_y, cursor_x) = self.console.get_cursor ()
-                cursor_y += 1
-            else:
-                (cursor_y, cursor_x) = self.editor.get_cursor ()
-                cursor_y += 1
-        else:
-            if self.console_focus:
-                (cursor_y, cursor_x) = self.console.get_cursor ()
-                cursor_y += (max_lines // 2) + 1
-            else:
-                (cursor_y, cursor_x) = self.editor.get_cursor ()
-                cursor_y += 1
+        (cursor_y, cursor_x) = frame.cursor
         self.screen.move (cursor_y, cursor_x)
         self.screen.refresh ()
 
@@ -462,43 +551,27 @@ class Pride:
         self.console.run (['python3', 'main.py'])
         self.sel.register (self.console.fd, selectors.EVENT_READ)
 
-    def render (self, frame):
-        editor_height = frame.height // 2
-        console_height = frame.height - editor_height
-
-        if self.fullscreen:
-            child_frame = Frame (frame.width, frame.height - 1)
-            if self.console_focus:
-                frame.render_text (0, 0, 'Console)' + 'X' * (frame.width - 8))
-                self.console.render (child_frame)
-            else:
-                frame.render_text (0, 0, 'Editor)' + 'X' * (frame.width - 7))
-                self.editor.render (child_frame)
-            frame.composite (0, 1, child_frame)
-        else:
-            frame.render_text (0, 0, 'Editor)' + 'X' * (frame.width - 7))
-
-            editor_frame = Frame (frame.width, editor_height - 1)
-            self.editor.render (editor_frame)
-            frame.composite (0, 1, editor_frame)
-
-            frame.render_text (0, editor_height, 'Console)' + 'X' * (frame.width - 8))
-
-            console_frame = Frame (frame.width, console_height - 1)
-            self.console.render (console_frame)
-            frame.composite (0, editor_height + 1, console_frame)
-
     def handle_key (self, key):
         if key == 'KEY_F(4)':
-            self.console_focus = not self.console_focus
+            if self.main_list.focus_child == self.editor:
+                self.main_list.focus (self.console)
+            else:
+                self.main_list.focus (self.editor)
+            self.update_visibility ()
         elif key == 'KEY_F(5)':
             self.run_program ()
         elif key == 'KEY_F(8)': # F11?
             self.fullscreen = not self.fullscreen
-        elif self.console_focus:
-            self.console.handle_key (key)
+            self.update_visibility ()
         else:
-            self.editor.handle_key (key)
+            self.main_list.handle_key (key)
+
+    def update_visibility (self):
+        focus_child = self.main_list.focus_child
+        self.editor_bar.visible = not self.fullscreen or focus_child is self.editor
+        self.editor.visible = not self.fullscreen or focus_child is self.editor
+        self.console_bar.visible = not self.fullscreen or focus_child is self.console
+        self.console.visible = not self.fullscreen or focus_child is self.console
 
 def main (screen):
     pride = Pride (screen)
