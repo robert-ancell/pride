@@ -8,13 +8,15 @@
 # version. See http://www.gnu.org/copyleft/gpl.html the full text of the
 # license.
 
-import sys
+import fcntl
 import os
-import curses
-import selectors
 import pty
-import subprocess
+import selectors
 import signal
+import struct
+import subprocess
+import sys
+import termios
 
 class Widget:
     def __init__ (self):
@@ -29,22 +31,39 @@ class Widget:
     def render (self, frame):
         pass
 
+class Pixel:
+    def __init__ (self):
+        self.set_value (ord (' '))
+
+    def set_value (self, character, foreground = 39, background = 49):
+        self.character = character
+        self.foreground = foreground
+        self.background = background
+
+    def copy (self, pixel):
+        self.character = pixel.character
+        self.foreground = pixel.foreground
+        self.background = pixel.background
+
 class Frame:
     def __init__ (self, width, height):
         self.width = width
         self.height = height
         self.buffer = []
         for y in range (height):
-            self.buffer.append ([' '] * width)
+            line = []
+            for x in range (width):
+                line.append (Pixel ())
+            self.buffer.append (line)
         self.cursor = (0, 0)
 
     def clear (self):
-        self.fill (0, 0, self.width, self.height, ' ')
+        self.fill (0, 0, self.width, self.height, ord (' '))
 
-    def fill (self, x, y, width, height, value):
+    def fill (self, x, y, width, height, character, foreground = 39, background = 49):
         for y_ in range (y, height):
             for x_ in range (x, width):
-                self.buffer[y_][x_] = value
+                self.buffer[y_][x_].set_value (character, foreground, background)
 
     def composite (self, x, y, frame):
         # FIXME: Make SubFrame that re-uses buffer?
@@ -54,16 +73,16 @@ class Frame:
             source_line = frame.buffer[y_]
             target_line = self.buffer[y + y_]
             for x_ in range (width):
-                target_line[x + x_] = source_line[x_]
+                target_line[x + x_].copy (source_line[x_])
 
-    def render_text (self, x, y, text):
+    def render_text (self, x, y, text, foreground = 39, background = 39):
         if y >= self.height:
             return
         line = self.buffer[y]
         for (i, c) in enumerate (text):
             if x + i >= self.width:
                 return
-            line[x + i] = c
+            line[x + i].set_value (ord (c), foreground, background)
 
 class List (Widget):
     def __init__ (self):
@@ -355,7 +374,7 @@ class Console (Widget):
 
                     code = self.read_buffer[end]
                     params = self.read_buffer[2:end]
-                    #open ('debug.log', 'a').write ('CSI code={} params={}\n'.format (code, params))
+                    #open ('debug.log', 'a').write ('console CSI code={} params={}\n'.format (code, params))
                     self.read_buffer = self.read_buffer[end + 1:]
                     if code == 'A': # CUU - cursor up
                         count = 1
@@ -486,8 +505,7 @@ class Console (Widget):
             os.write (self.fd, '\033[F'.encode ('ascii'))
 
 class Pride:
-    def __init__ (self, screen):
-        self.screen = screen
+    def __init__ (self):
         self.sel = selectors.DefaultSelector ()
         self.fullscreen = False
 
@@ -507,7 +525,11 @@ class Pride:
         self.main_list.focus (self.editor)
 
     def run (self):
-        self.sel.register (sys.stdin, selectors.EVENT_READ)
+        self.starting_terminal_attributes = termios.tcgetattr (sys.stdin) 
+        terminal_attributes = self.starting_terminal_attributes[:]
+        terminal_attributes[3] = terminal_attributes[3] & ~termios.ECHO
+        termios.tcsetattr (sys.stdin, termios.TCSADRAIN, terminal_attributes)
+
         try:
             for line in open ('main.py').read ().split ('\n'):
                 self.buffer.lines.append (line)
@@ -517,12 +539,13 @@ class Pride:
         self.sel.register (self.console.fd, selectors.EVENT_READ)
 
         self.refresh ()
+        self.read_buffer = ''
+        self.sel.register (sys.stdin, selectors.EVENT_READ)
         while True:
             events = self.sel.select ()
             for key, mask in events:
                 if key.fileobj == sys.stdin:
-                    key = self.screen.getkey ()
-                    self.handle_key (key)
+                    self.read_input ()
                 elif key.fd == self.console.fd:
                     if not self.console.read ():
                         pass
@@ -532,21 +555,98 @@ class Pride:
                         #self.sel.register (self.console.fd, selectors.EVENT_READ)
             self.refresh ()
 
+    def cleanup (self):
+        termios.tcsetattr (sys.stdin, termios.TCSADRAIN, self.starting_terminal_attributes)
+        termios.tcflush (sys.stdin, termios.TCIOFLUSH);
+
+    def read_input (self):
+        self.read_buffer += sys.stdin.read ()
+        while self.read_buffer != '':
+            c = self.read_buffer[0]
+            if c == '\033':
+                if len (self.read_buffer) == 1:
+                    return True
+                # ANSI CSI
+                if self.read_buffer[1] == '[':
+                    # Find end characters
+                    end = 2
+                    def is_csi_end (c):
+                        n = ord (c)
+                        return n >= 0x40 and n <= 0x7F;
+                    while end < len (self.read_buffer) and not is_csi_end (self.read_buffer[end]):
+                        end += 1
+                    if end >= len (self.read_buffer):
+                        return True # Not got full sequence, wait for more data
+
+                    code = self.read_buffer[end]
+                    params = self.read_buffer[2:end]
+                    #open ('debug.log', 'a').write ('CSI code={} params={}\n'.format (code, params))
+                    self.read_buffer = self.read_buffer[end + 1:]
+                    if code == 'A': # CUU - cursor up
+                        count = 1
+                        if params != '':
+                            count = int (param)
+                        pass # FIXME
+                    elif code == 'B': # CUD - cursor down
+                        count = 1
+                        if params != '':
+                            count = int (param)
+                        pass # FIXME
+                    elif code == 'C': # CUF - cursor right
+                        count = 1
+                        if params != '':
+                            count = int (param)
+                        pass # FIXME
+                    elif code == 'D': # CUB - cursor left
+                        count = 1
+                        if params != '':
+                            count = int (param)
+                        pass # FIXME
+                    else:
+                        open ('debug.log', 'a').write ('Unknown input CSI code={} params={}\n'.format (code, params))
+                else:
+                    # FIXME
+                    open ('debug.log', 'a').write ('Unknown input escape code {}\n'.format (ord (c)))
+                    self.read_buffer = self.read_buffer[1:]
+            elif c in '\b\r\n' or (ord (c) >= 0x20 and ord (c) <= 0x7E):
+                self.read_buffer = self.read_buffer[1:]
+            elif ord (c) & 0x80 != 0: # UTF-8
+                open ('debug.log', 'a').write ('FIXME: input UTF-8\n')
+                self.read_buffer = self.read_buffer[1:]
+            else:
+                open ('debug.log', 'a').write ('Unknown input character {}\n'.format (ord (c)))
+                self.read_buffer = self.read_buffer[1:]
+
     def refresh (self):
-        (max_lines, max_width) = self.screen.getmaxyx ()
+        (max_lines, max_width) = self.get_window_size ()
         frame = Frame (max_width, max_lines)
         self.main_list.render (frame)
-        for y in range (frame.height):
-            text = ''
-            for x in range (frame.width):
-                text += frame.buffer[y][x]
+        foreground = 39
+        background = 49
+        text = '\033[H' # FIXME: Cursor off?
+        for (y, line) in enumerate (frame.buffer):
+            for pixel in line:
+                if pixel.foreground != foreground or pixel.background != background:
+                    values = []
+                    if foreground != pixel.foreground:
+                        values.append (str (pixel.foreground))
+                        foreground = pixel.foreground
+                    if background != pixel.background:
+                        values.append (str (pixel.background))
+                        background = pixel.background
+                    text += '\033[{}m'.format (';'.join (values))
+                text += chr (pixel.character)
             if y == frame.height - 1:
                 text = text[:-1]
-            self.screen.addstr (y, 0, text)
+        text += '\033[{};{}H'.format (frame.cursor[0] + 1, frame.cursor[1] + 1)
+        sys.stdout.write (text)
+        termios.tcflush (sys.stdout, termios.TCIOFLUSH);
 
-        (cursor_y, cursor_x) = frame.cursor
-        self.screen.move (cursor_y, cursor_x)
-        self.screen.refresh ()
+    def get_window_size (self):
+        s = struct.pack ('HHHH', 0, 0, 0, 0)
+        t = fcntl.ioctl (sys.stdout.fileno (), termios.TIOCGWINSZ, s)
+        (rows, columns, _, _) = struct.unpack ('HHHH', t)
+        return (rows, columns)
 
     def run_program (self):
         f = open ('main.py', 'w')
@@ -579,8 +679,9 @@ class Pride:
         self.console_bar.visible = not self.fullscreen or focus_child is self.console
         self.console.visible = not self.fullscreen or focus_child is self.console
 
-def main (screen):
-    pride = Pride (screen)
+pride = Pride ()
+try:
     pride.run ()
-
-curses.wrapper (main)
+except Exception as e:
+    pride.cleanup ()
+    print ('Failed to run: {}'.format (e))
