@@ -259,14 +259,20 @@ class TextView (Widget):
         return len ('%d' % len (self.buffer.lines)) + 1
 
     def render (self, frame):
+        # Scroll display to show cursor
+        while self.cursor[0] - self.start_line < 0:
+            self.start_line -= 1
+        while self.cursor[0] - self.start_line >= frame.height:
+            self.start_line += 1
+
         frame.clear ()
         line_number_column_width = self.get_line_number_column_width ()
-        for y in range (min (len (self.buffer.lines), frame.height)):
+        for y in range (self.start_line, min (len (self.buffer.lines), frame.height + self.start_line)):
             line_number = '%d' % (y + 1)
-            frame.render_text (line_number_column_width - len (line_number) - 1, y, line_number)
-        for (y, line) in enumerate (self.buffer.lines):
-            frame.render_text (line_number_column_width, y, line)
-        frame.cursor = (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
+            frame.render_text (line_number_column_width - len (line_number) - 1, y - self.start_line, line_number)
+            frame.render_text (line_number_column_width, y - self.start_line, self.buffer.lines[y])
+
+        frame.cursor = (self.cursor[0] - self.start_line, min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
 
     def handle_key (self, key):
         if key == 'KEY_BACKSPACE':
