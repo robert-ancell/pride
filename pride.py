@@ -8,6 +8,8 @@
 # version. See http://www.gnu.org/copyleft/gpl.html the full text of the
 # license.
 
+# ＰｒＩＤＥ
+
 import sys
 import os
 import curses
@@ -23,11 +25,61 @@ class Widget:
     def get_size (self):
         return (0, 0)
 
-    def handle_key (self, key):
+    def handle_event (self, event):
+        if isinstance (event, CharacterInputEvent):
+            self.handle_character_event (event)
+        elif isinstance (event, KeyInputEvent):
+            self.handle_key_event (event)
+
+    def handle_character_event (self, event):
+        pass
+
+    def handle_key_event (self, event):
         pass
 
     def render (self, frame):
         pass
+
+class Pixel:
+    def __init__ (self):
+        self.set_value (ord (' '))
+
+    def set_value (self, character, foreground = curses.COLOR_WHITE, background = curses.COLOR_BLACK):
+        self.character = character
+        self.foreground = foreground
+        self.background = background
+
+    def copy (self, pixel):
+        self.character = pixel.character
+        self.foreground = pixel.foreground
+        self.background = pixel.background
+
+class InputEvent:
+    def __init__ (self):
+        pass
+
+class CharacterInputEvent (InputEvent):
+    def __init__ (self, character):
+        self.character = character
+
+    def __str__ (self):
+        return 'CharacterInputEvent({})'.format (self.character)
+
+class KeyInputEvent (InputEvent):
+    def __init__ (self, key):
+        self.key = key
+
+    def __str__ (self):
+        return 'KeyInputEvent({})'.format (self.key)
+
+class CursorInputEvent (InputEvent):
+    def __init__ (self, line_step, row_step, relative = True):
+        self.line_step = line_step
+        self.row_step = row_step
+        self.relative = relative
+
+    def __str__ (self):
+        return 'CursorInputEvent(line_step = {}, row_step = {}, relative = {})'.format (self.line_step, self.row_step, self.relative)
 
 class Frame:
     def __init__ (self, width, height):
@@ -35,16 +87,19 @@ class Frame:
         self.height = height
         self.buffer = []
         for y in range (height):
-            self.buffer.append ([' '] * width)
+            line = []
+            for x in range (width):
+                line.append (Pixel ())
+            self.buffer.append (line)
         self.cursor = (0, 0)
 
     def clear (self):
-        self.fill (0, 0, self.width, self.height, ' ')
+        self.fill (0, 0, self.width, self.height, ord (' '))
 
-    def fill (self, x, y, width, height, value):
+    def fill (self, x, y, width, height, character, foreground = curses.COLOR_WHITE, background = curses.COLOR_BLACK):
         for y_ in range (y, height):
             for x_ in range (x, width):
-                self.buffer[y_][x_] = value
+                self.buffer[y_][x_].set_value (character, foreground, background)
 
     def composite (self, x, y, frame):
         # FIXME: Make SubFrame that re-uses buffer?
@@ -54,16 +109,16 @@ class Frame:
             source_line = frame.buffer[y_]
             target_line = self.buffer[y + y_]
             for x_ in range (width):
-                target_line[x + x_] = source_line[x_]
+                target_line[x + x_].copy (source_line[x_])
 
-    def render_text (self, x, y, text):
+    def render_text (self, x, y, text, foreground = curses.COLOR_WHITE, background = curses.COLOR_BLACK):
         if y >= self.height:
             return
         line = self.buffer[y]
         for (i, c) in enumerate (text):
             if x + i >= self.width:
                 return
-            line[x + i] = c
+            line[x + i].set_value (ord (c), foreground, background)
 
 class List (Widget):
     def __init__ (self):
@@ -80,10 +135,10 @@ class List (Widget):
     def focus (self, child):
         self.focus_child = child
 
-    def handle_key (self, key):
+    def handle_event (self, event):
         if self.focus_child is None:
             return
-        self.focus_child.handle_key (key)
+        self.focus_child.handle_event (event)
 
     def render (self, frame):
         visible_children = []
@@ -141,7 +196,7 @@ class Bar (Widget):
             text = self.title
         while len (text) < frame.width:
             text += 'X'
-        frame.render_text (0, 0, text)
+        frame.render_text (0, 0, text, curses.COLOR_RED)
 
 class TextBuffer:
     def __init__ (self):
@@ -269,40 +324,39 @@ class TextView (Widget):
         line_number_column_width = self.get_line_number_column_width ()
         for y in range (self.start_line, min (len (self.buffer.lines), frame.height + self.start_line)):
             line_number = '%d' % (y + 1)
-            frame.render_text (line_number_column_width - len (line_number) - 1, y - self.start_line, line_number)
+            frame.render_text (line_number_column_width - len (line_number) - 1, y - self.start_line, line_number, curses.COLOR_CYAN)
             frame.render_text (line_number_column_width, y - self.start_line, self.buffer.lines[y])
 
         frame.cursor = (self.cursor[0] - self.start_line, min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
 
-    def handle_key (self, key):
-        if key == 'KEY_BACKSPACE':
+    def handle_character_event (self, event):
+        self.insert (chr (event.character))
+
+    def handle_key_event (self, event):
+        if event.key == curses.KEY_BACKSPACE:
             self.backspace ()
-        elif key == 'KEY_DC':
+        elif event.key == curses.KEY_DC:
             self.delete ()
-        elif key == 'KEY_LEFT':
+        elif event.key == curses.KEY_LEFT:
             self.left ()
-        elif key == 'KEY_RIGHT':
+        elif event.key == curses.KEY_RIGHT:
             self.right ()
-        elif key == 'KEY_UP':
+        elif event.key == curses.KEY_UP:
             self.up ()
-        elif key == 'KEY_DOWN':
+        elif event.key == curses.KEY_DOWN:
             self.down ()
-        elif key == 'KEY_HOME':
+        elif event.key == curses.KEY_HOME:
             self.home ()
-        elif key == 'KEY_END':
+        elif event.key == curses.KEY_END:
             self.end ()
-        elif key == 'KEY_NPAGE':
+        elif event.key == curses.KEY_NPAGE:
             self.next_page ()
-        elif key == 'KEY_PPAGE':
+        elif event.key == curses.KEY_PPAGE:
             self.prev_page ()
-        elif key == '\t':
+        elif event.key == '\t':
             self.insert ('    ')
-        elif key == '\n':
+        elif event.key == '\n':
             self.newline ()
-        elif len (key) == 1 and ord (key) >= 0x20 and ord (key) <= 0x7E:
-            self.insert (key)
-        elif len (key) == 1 and ord (key) & 0x80 != 0: # UTF-8
-            open ('debug.log', 'a').write ('FIXME: UTF-8\n')
         else:
             open ('debug.log', 'a').write ('Unhandled editor key {}\n'.format (repr (key)))
 
@@ -329,7 +383,7 @@ class Console (Widget):
 
     def read (self):
         try:
-            self.read_buffer += os.read (self.fd, 65535).decode ('utf-8')
+            self.read_buffer += os.read (self.fd, 65535).decode ('utf-8') # FIXME: Use bytes
         except:
             os.close (self.fd) # FIXME: Should unregister fd
             return False
@@ -355,7 +409,7 @@ class Console (Widget):
 
                     code = self.read_buffer[end]
                     params = self.read_buffer[2:end]
-                    #open ('debug.log', 'a').write ('CSI code={} params={}\n'.format (code, params))
+                    #open ('debug.log', 'a').write ('console CSI code={} params={}\n'.format (code, params))
                     self.read_buffer = self.read_buffer[end + 1:]
                     if code == 'A': # CUU - cursor up
                         count = 1
@@ -465,24 +519,25 @@ class Console (Widget):
             frame.render_text (0, y, line)
         frame.cursor = self.cursor
 
-    def handle_key (self, key):
-        if len (key) == 1:
-            os.write (self.fd, key.encode ('utf-8'))
-        elif key == 'KEY_BACKSPACE':
+    def handle_character_event (self, event):
+        os.write (self.fd, bytes (chr (event.character), 'utf-8'))
+
+    def handle_key_event (self, event):
+        if event.key == curses.KEY_BACKSPACE:
             os.write (self.fd, '\b'.encode ('ascii'))
-        elif key == 'KEY_DC':
+        elif event.key == curses.KEY_DC:
             os.write (self.fd, '\033[3~'.encode ('ascii'))
-        elif key == 'KEY_UP':
+        elif event.key == curses.KEY_UP:
             os.write (self.fd, '\033[A'.encode ('ascii'))
-        elif key == 'KEY_DOWN':
+        elif event.key == curses.KEY_DOWN:
             os.write (self.fd, '\033[B'.encode ('ascii'))
-        elif key == 'KEY_RIGHT':
+        elif event.key == curses.KEY_RIGHT:
             os.write (self.fd, '\033[C'.encode ('ascii'))
-        elif key == 'KEY_LEFT':
+        elif event.key == curses.KEY_LEFT:
             os.write (self.fd, '\033[D'.encode ('ascii'))
-        elif key == 'KEY_HOME':
+        elif event.key == curses.KEY_HOME:
             os.write (self.fd, '\033[H'.encode ('ascii'))
-        elif key == 'KEY_END':
+        elif event.key == curses.KEY_END:
             os.write (self.fd, '\033[F'.encode ('ascii'))
 
 class Pride:
@@ -507,7 +562,6 @@ class Pride:
         self.main_list.focus (self.editor)
 
     def run (self):
-        self.sel.register (sys.stdin, selectors.EVENT_READ)
         try:
             for line in open ('main.py').read ().split ('\n'):
                 self.buffer.lines.append (line)
@@ -517,12 +571,12 @@ class Pride:
         self.sel.register (self.console.fd, selectors.EVENT_READ)
 
         self.refresh ()
+        self.sel.register (sys.stdin, selectors.EVENT_READ)
         while True:
             events = self.sel.select ()
             for key, mask in events:
                 if key.fileobj == sys.stdin:
-                    key = self.screen.getkey ()
-                    self.handle_key (key)
+                    self.handle_input ()
                 elif key.fd == self.console.fd:
                     if not self.console.read ():
                         pass
@@ -536,13 +590,20 @@ class Pride:
         (max_lines, max_width) = self.screen.getmaxyx ()
         frame = Frame (max_width, max_lines)
         self.main_list.render (frame)
+        color_index = 0
         for y in range (frame.height):
             text = ''
+            current_color = (None, None)
             for x in range (frame.width):
-                text += frame.buffer[y][x]
-            if y == frame.height - 1:
-                text = text[:-1]
-            self.screen.addstr (y, 0, text)
+                pixel = frame.buffer[y][x]
+                # FIXME: Can't place in bottom right for some reason
+                if y == frame.height - 1 and x == frame.width - 1:
+                    break
+                if (pixel.foreground, pixel.background) != current_color:
+                    color_index += 1 # FIXME: Lookup table for existing colors
+                    curses.init_pair (color_index, pixel.foreground, pixel.background)
+                    current_color = (pixel.foreground, pixel.background)
+                self.screen.addstr (y, x, chr (pixel.character), curses.color_pair (color_index))
 
         (cursor_y, cursor_x) = frame.cursor
         self.screen.move (cursor_y, cursor_x)
@@ -557,20 +618,34 @@ class Pride:
         self.console.run (['python3', 'main.py'])
         self.sel.register (self.console.fd, selectors.EVENT_READ)
 
-    def handle_key (self, key):
-        if key == 'KEY_F(4)':
-            if self.main_list.focus_child == self.editor:
-                self.main_list.focus (self.console)
-            else:
-                self.main_list.focus (self.editor)
-            self.update_visibility ()
-        elif key == 'KEY_F(5)':
-            self.run_program ()
-        elif key == 'KEY_F(8)': # F11?
-            self.fullscreen = not self.fullscreen
-            self.update_visibility ()
+    def handle_input (self):
+        key = self.screen.getch ()
+        if key <= 0x7F:
+            self.handle_event (CharacterInputEvent (key))
+        elif key > 0xFF:
+            self.handle_event (KeyInputEvent (key))
         else:
-            self.main_list.handle_key (key)
+            open ('debug.log', 'a').write ('Unknown input {}\n'.format (repr (key)))
+
+    def handle_event (self, event):
+        open ('debug.log', 'a').write ('EVENT {}\n'.format (event))
+        if isinstance (event, KeyInputEvent):
+            if event.key == curses.KEY_F4:
+                if self.main_list.focus_child == self.editor:
+                    self.main_list.focus (self.console)
+                else:
+                    self.main_list.focus (self.editor)
+                self.update_visibility ()
+                return
+            elif event.key == curses.KEY_F5:
+                self.run_program ()
+                return
+            elif event.key == curses.KEY_F8: # F11?
+                self.fullscreen = not self.fullscreen
+                self.update_visibility ()
+                return
+
+        self.main_list.handle_event (event)
 
     def update_visibility (self):
         focus_child = self.main_list.focus_child
@@ -580,6 +655,8 @@ class Pride:
         self.console.visible = not self.fullscreen or focus_child is self.console
 
 def main (screen):
+    curses.start_color ()
+    curses.use_default_colors ()
     pride = Pride (screen)
     pride.run ()
 
