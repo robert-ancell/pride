@@ -126,11 +126,11 @@ class List (Widget):
         self.focus_child = None
         self.children = []
 
-    def insert (self, child, index):
-        self.children = self.children[:index] + [child] + self.children[index:]
-
-    def append (self, child):
-        self.insert (child, len (self.children))
+    def add_child (self, child, index = -1):
+        if index >= 0:
+            self.children.insert (child, index)
+        else:
+            self.children.append (child)
 
     def focus (self, child):
         self.focus_child = child
@@ -178,6 +178,99 @@ class List (Widget):
             if child is self.focus_child:
                 frame.cursor = (line_offset + child_frame.cursor[0], child_frame.cursor[1])
             line_offset += height
+
+class Stack (Widget):
+    def __init__ (self):
+        Widget.__init__ (self)
+        self.children = []
+
+    def add_child (self, child):
+        self.children.insert (0, child)
+
+    def raise_to_top (self, child):
+        pass # FIXME
+
+    def get_size (self):
+        return (0, 0) # FIXME: Use smallest size that all children can fit in
+
+    def handle_event (self, event):
+        for child in self.children:
+            if child.visible:
+                child.handle_event (event)
+                return
+
+    def render (self, frame):
+        # FIXME: Work out if widgets would be covered and skip rendering
+        # FIXME: Take colour out of covered children
+        have_cursor = False
+        for child in reversed (self.children):
+            if not child.visible:
+                continue
+            (height, width) = child.get_size ()
+            if width == 0:
+                width = frame.width
+            if height == 0:
+                height = frame.height
+            child_frame = Frame (width, height)
+            child.render (child_frame)
+            x_offset = (frame.width - width) // 2
+            y_offset = (frame.height - height) // 2
+            frame.composite (x_offset, y_offset, child_frame)
+            if not have_cursor:
+                frame.cursor = (child_frame.cursor[0] + y_offset, child_frame.cursor[1] + x_offset)
+
+class Label (Widget):
+    def __init__ (self, text):
+        Widget.__init__ (self)
+        self.text = text
+
+    def get_size (self):
+        max_width = 0
+        lines = self.text.split ('\n')
+        for line in lines:
+            max_width = max (max_width, len (line))
+        return (len (lines), max_width)
+
+    def render (self, frame):
+        # FIXME: alignment, multi-line
+        frame.render_text (0, 0, self.text)
+
+class Box (Widget):
+    def __init__ (self):
+        Widget.__init__ (self)
+        self.child = None
+
+    def set_child (self, child):
+        self.child = child
+
+    def handle_event (self, event):
+        if self.child is None:
+            return
+        if self.child.visible:
+            self.child.handle_event (event)
+
+    def get_size (self):
+        if self.child is not None and self.child.visible:
+            (height, width) = self.child.get_size ()
+        else:
+            (height, width) = (0, 0)
+        return (height + 2, width + 2)
+
+    def render (self, frame):
+        if self.child is not None and self.child.visible:
+            child_frame = Frame (frame.width - 2, frame.height - 2)
+            self.child.render (child_frame)
+            frame.composite (1, 1, child_frame)
+        frame.render_text (0, 0, '+')
+        frame.render_text (frame.width - 1, 0, '+')
+        frame.render_text (0, frame.height - 1, '+')
+        frame.render_text (frame.width - 1, frame.height - 1, '+')
+        for x in range (1, frame.width - 1):
+            frame.render_text (x, 0, '-')
+            frame.render_text (x, frame.height - 1, '-')
+        for y in range (1, frame.width - 1):
+            frame.render_text (0, y, '|')
+            frame.render_text (frame.width - 1, y, '|')
 
 class Bar (Widget):
     def __init__ (self, title = ''):
@@ -358,7 +451,7 @@ class TextView (Widget):
         elif event.key == '\n':
             self.newline ()
         else:
-            open ('debug.log', 'a').write ('Unhandled editor key {}\n'.format (repr (key)))
+            open ('debug.log', 'a').write ('Unhandled editor key {}\n'.format (event.key))
 
 class Console (Widget):
     def __init__ (self):
@@ -546,20 +639,30 @@ class Pride:
         self.sel = selectors.DefaultSelector ()
         self.fullscreen = False
 
+        self.stack = Stack ()
+
         self.main_list = List ()
+        self.stack.add_child (self.main_list)
 
         self.editor_bar = Bar ('Editor)')
         self.buffer = TextBuffer ()
         self.editor = TextView (self.buffer)
-        self.main_list.append (self.editor_bar)
-        self.main_list.append (self.editor)
+        self.main_list.add_child (self.editor_bar)
+        self.main_list.add_child (self.editor)
 
         self.console_bar = Bar ('Console)')
         self.console = Console ()
-        self.main_list.append (self.console_bar)
-        self.main_list.append (self.console)
+        self.main_list.add_child (self.console_bar)
+        self.main_list.add_child (self.console)
 
         self.main_list.focus (self.editor)
+
+        self.help_window = Box ()
+        self.help_window.visible = False
+        self.stack.add_child (self.help_window)
+
+        help_label = Label ('Help Me!')
+        self.help_window.set_child (help_label)
 
     def run (self):
         try:
@@ -589,7 +692,7 @@ class Pride:
     def refresh (self):
         (max_lines, max_width) = self.screen.getmaxyx ()
         frame = Frame (max_width, max_lines)
-        self.main_list.render (frame)
+        self.stack.render (frame)
         color_index = 0
         for y in range (frame.height):
             text = ''
@@ -630,14 +733,17 @@ class Pride:
     def handle_event (self, event):
         open ('debug.log', 'a').write ('EVENT {}\n'.format (event))
         if isinstance (event, KeyInputEvent):
-            if event.key == curses.KEY_F4:
+            if event.key == curses.KEY_F1:
+                self.help_window.visible = not self.help_window.visible
+                return
+            elif event.key == curses.KEY_F4: # FIXME: Handle in self.main_list.handle_event
                 if self.main_list.focus_child == self.editor:
                     self.main_list.focus (self.console)
                 else:
                     self.main_list.focus (self.editor)
                 self.update_visibility ()
                 return
-            elif event.key == curses.KEY_F5:
+            elif event.key == curses.KEY_F5: # FIXME: Handle in self.main_list.handle_event
                 self.run_program ()
                 return
             elif event.key == curses.KEY_F8: # F11?
@@ -645,7 +751,7 @@ class Pride:
                 self.update_visibility ()
                 return
 
-        self.main_list.handle_event (event)
+        self.stack.handle_event (event)
 
     def update_visibility (self):
         focus_child = self.main_list.focus_child
