@@ -17,6 +17,8 @@ import selectors
 import pty
 import subprocess
 import signal
+import unicodedata
+import xml.etree.ElementTree as ET
 
 class Widget:
     def __init__ (self):
@@ -203,13 +205,15 @@ class Stack (Widget):
     def add_child (self, child):
         self.children.insert (0, child)
 
-    def raise_to_top (self, child):
-        pass # FIXME
+    def raise_child (self, child):
+        self.children.remove (child)
+        self.children.insert (0, child)
 
     def get_size (self):
         return (0, 0) # FIXME: Use smallest size that all children can fit in
 
     def handle_event (self, event):
+        open ('debug.log', 'a').write ('stack key {}\n'.format (event))
         for child in self.children:
             if child.visible:
                 child.handle_event (event)
@@ -351,6 +355,198 @@ class PythonLogo (Widget):
                        'e': ("#FFFFFF",  "#FFFF00")}
 
         frame.render_image (0, 0, lines, colors, color_codes)
+
+class EmojiDialog (Widget):
+    def __init__ (self):
+        Widget.__init__ (self)
+        self.selected = (0, 0)
+        self.filter = ''
+
+        class Character:
+            def __init__ (self, character, names):
+                self.character = character
+                self.names = names
+        self.characters = []
+        tree = ET.parse ('emoji.xml')
+        root = tree.getroot ()
+        for c0 in root:
+            if c0.tag == 'annotations':
+                for c1 in c0:
+                    if c1.tag == 'annotation':
+                        if c1.get ('type', '') == 'tts':
+                            continue
+                        cp = c1.get ('cp')
+                        if len (cp) > 1:
+                            continue
+                        # Skip skin tones, as we don't support combining characters
+                        if ord (cp) >= 0x1f3fb and ord (cp) <= 0x1f3ff:
+                            continue
+
+                        names = []
+                        for name in c1.text.split ('|'):
+                            names.append (name.strip ().lower ())
+
+                        self.characters.append (Character (cp, names))
+
+    def get_characters (self, query):
+        exact_matches = []
+        prefix_matches = []
+        matches = []
+        for c in self.characters:
+            def matches_exact (query, names):
+                for name in names:
+                    if name == query:
+                        return True
+                return False
+            def matches_prefix (query, names):
+                for name in names:
+                    if name.startswith (query):
+                        return True
+                return False
+            def matches_segment (query, names):
+                for name in names:
+                    if query in name:
+                        return True
+                return False
+            if matches_exact (query, c.names):
+                exact_matches.append (c.character)
+            elif matches_prefix (query, c.names):
+                prefix_matches.append (c.character)
+            elif matches_segment (query, c.names):
+                matches.append (c.character)
+
+        return exact_matches + prefix_matches + matches
+
+    def handle_key_event (self, event):
+        open ('debug.log', 'a').write ('emoji key {}\n'.format (event.key))
+        if event.key == curses.KEY_BACKSPACE:
+            self.filter = self.filter[:-1]
+            self.selected = (0, 0)
+        elif event.key == curses.KEY_UP:
+            self.selected = (max (self.selected[0] - 1, 0), self.selected[1])
+        elif event.key == curses.KEY_DOWN:
+            self.selected = (min (self.selected[0] + 1, self.n_rows - 1), self.selected[1])
+        elif event.key == curses.KEY_LEFT:
+            self.selected = (self.selected[0], max (self.selected[1] - 1, 0))
+        elif event.key == curses.KEY_RIGHT:
+            self.selected = (self.selected[0], min (self.selected[1] + 1, self.n_cols - 1))
+
+    def handle_character_event (self, event):
+        if event.character == ord ('\n'):
+            self.visible = False
+        else:
+            self.filter += chr (event.character)
+            self.selected = (0, 0)
+
+    def render (self, frame):
+        matched_characters = self.get_characters (self.filter)
+
+        # FIXME: Move outside of this widget
+        vborder = 10
+        hborder = 40
+
+        self.n_rows = (frame.height - 1 - vborder * 2) // 2
+        self.n_cols = (frame.width - 1 - hborder * 2) // 3
+
+        line = vborder
+        if self.selected == (0, 0):
+            text = '┏'
+        else:
+            text = '╭'
+        for c in range (self.n_cols):
+            if c != 0:
+                if self.selected == (0, c - 1):
+                    text += '┱'
+                elif self.selected == (0, c):
+                    text += '┲'
+                else:
+                    text += '┬'
+            if self.selected == (0, c):
+                text += '━━'
+            else:
+                text += '──'
+        if self.selected == (0, self.n_cols - 1):
+            text += '┓'
+        else:
+            text += '╮'
+        frame.render_text (hborder, line, text)
+        line += 1
+        character_index = 0
+        for r in range (self.n_rows):
+            if self.selected == (r, 0):
+                text = '┃'
+            else:
+                text = '│'
+            for c in range (self.n_cols):
+                if character_index < len (matched_characters):
+                    ch = matched_characters[character_index]
+                else:
+                    ch = ' '
+                character_index += 1
+                text += ch
+                if unicodedata.east_asian_width (ch) not in ('W', 'F'): # Defined in http://www.unicode.org/reports/tr11/#
+                    text += ' '
+                if self.selected == (r, c) or self.selected == (r, c + 1):
+                    text += '┃'
+                else:
+                    text += '│'
+            frame.render_text (hborder, line, text)
+            line += 1
+            if r < self.n_rows - 1:
+                if self.selected == (r, 0):
+                    text = '┡'
+                elif self.selected == (r + 1, 0):
+                    text = '┢'
+                else:
+                    text = '├'
+                for c in range (self.n_cols):
+                    if c != 0:
+                        if self.selected == (r, c):
+                            text += '╄'
+                        elif self.selected == (r + 1, c):
+                            text += '╆'
+                        elif self.selected == (r, c - 1):
+                            text += '╃'
+                        elif self.selected == (r + 1, c - 1):
+                            text += '╅'
+                        else:
+                            text += '┼'
+                    if self.selected == (r, c) or self.selected == (r + 1, c):
+                        text += '━━'
+                    else:
+                        text += '──'
+                if self.selected == (r, c):
+                    text += '┩'
+                elif self.selected == (r + 1, c):
+                    text += '┪'
+                else:
+                    text += '┤'
+            else:
+                if self.selected == (self.n_rows - 1, 0):
+                    text = '┗'
+                else:
+                    text = '╰'
+                for c in range (self.n_cols):
+                    if c != 0:
+                        if self.selected == (r, c):
+                            text += '┺'
+                        elif self.selected == (r, c - 1):
+                            text += '┹'
+                        else:
+                            text += '┴'
+                    if self.selected == (self.n_rows - 1, c):
+                        text += '━━'
+                    else:
+                        text += '──'
+                if self.selected == (self.n_rows - 1, self.n_cols - 1):
+                    text += '┛'
+                else:
+                    text += '╯'
+            frame.render_text (hborder, line, text)
+            line += 1
+
+        frame.render_text (hborder + 1, vborder - 1, self.filter)
+        frame.cursor = (vborder - 1, hborder + 1 + len (self.filter))
 
 class TextBuffer:
     def __init__ (self):
@@ -729,6 +925,10 @@ class Pride:
         python_logo = PythonLogo ()
         self.help_window.set_child (python_logo)
 
+        self.emoji_dialog = EmojiDialog ()
+        self.emoji_dialog.visible = False
+        self.stack.add_child (self.emoji_dialog)
+
     def run (self):
         try:
             for line in open ('main.py').read ().split ('\n'):
@@ -823,6 +1023,8 @@ class Pride:
         if isinstance (event, KeyInputEvent):
             if event.key == curses.KEY_F1:
                 self.help_window.visible = not self.help_window.visible
+                if self.help_window.visible:
+                    self.stack.raise_child (self.help_window)
                 return
             elif event.key == curses.KEY_F4: # FIXME: Handle in self.main_list.handle_event
                 if self.main_list.focus_child == self.editor:
@@ -837,6 +1039,10 @@ class Pride:
             elif event.key == curses.KEY_F8: # F11?
                 self.fullscreen = not self.fullscreen
                 self.update_visibility ()
+                return
+            elif event.key == curses.KEY_IC:
+                self.emoji_dialog.visible = True
+                self.stack.raise_child (self.emoji_dialog)
                 return
 
         self.stack.handle_event (event)
