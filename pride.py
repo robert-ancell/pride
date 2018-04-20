@@ -261,16 +261,17 @@ class Box (Widget):
             child_frame = Frame (frame.width - 2, frame.height - 2)
             self.child.render (child_frame)
             frame.composite (1, 1, child_frame)
-        frame.render_text (0, 0, '+')
-        frame.render_text (frame.width - 1, 0, '+')
-        frame.render_text (0, frame.height - 1, '+')
-        frame.render_text (frame.width - 1, frame.height - 1, '+')
+        # FIXME: Different styles
+        frame.render_text (0, 0, '╭')
+        frame.render_text (frame.width - 1, 0, '╮')
+        frame.render_text (0, frame.height - 1, '╰')
+        frame.render_text (frame.width - 1, frame.height - 1, '╯')
         for x in range (1, frame.width - 1):
-            frame.render_text (x, 0, '-')
-            frame.render_text (x, frame.height - 1, '-')
-        for y in range (1, frame.width - 1):
-            frame.render_text (0, y, '|')
-            frame.render_text (frame.width - 1, y, '|')
+            frame.render_text (x, 0, '─')
+            frame.render_text (x, frame.height - 1, '─')
+        for y in range (1, frame.height - 1):
+            frame.render_text (0, y, '│')
+            frame.render_text (frame.width - 1, y, '│')
 
 class Bar (Widget):
     def __init__ (self, title = ''):
