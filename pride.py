@@ -44,7 +44,7 @@ class Pixel:
     def __init__ (self):
         self.set_value (ord (' '))
 
-    def set_value (self, character, foreground = curses.COLOR_WHITE, background = curses.COLOR_BLACK):
+    def set_value (self, character, foreground = "#FFFFFF", background = "#000000"):
         self.character = character
         self.foreground = foreground
         self.background = background
@@ -93,10 +93,12 @@ class Frame:
             self.buffer.append (line)
         self.cursor = (0, 0)
 
-    def clear (self):
-        self.fill (0, 0, self.width, self.height, ord (' '))
+    def clear (self, color = "#000000"):
+        self.fill (0, 0, self.width, self.height, ord (' '), background = color)
 
-    def fill (self, x, y, width, height, character, foreground = curses.COLOR_WHITE, background = curses.COLOR_BLACK):
+    def fill (self, x, y, width, height, character, foreground = "#FFFFFF", background = "#000000"):
+        height = min (height, self.height)
+        width = min (width, self.width)
         for y_ in range (y, height):
             for x_ in range (x, width):
                 self.buffer[y_][x_].set_value (character, foreground, background)
@@ -111,14 +113,28 @@ class Frame:
             for x_ in range (width):
                 target_line[x + x_].copy (source_line[x_])
 
-    def render_text (self, x, y, text, foreground = curses.COLOR_WHITE, background = curses.COLOR_BLACK):
+    def render_text (self, x, y, text, foreground = "#FFFFFF", background = "#000000"):
         if y >= self.height:
             return
         line = self.buffer[y]
         for (i, c) in enumerate (text):
             if x + i >= self.width:
-                return
+                break
             line[x + i].set_value (ord (c), foreground, background)
+
+    def render_image (self, x, y, lines, color_lines = None, color_map = None):
+        for (i, source_line) in enumerate (lines):
+            if y + i >= self.height:
+                return
+            line = self.buffer[y + i]
+            for (j, c) in enumerate (source_line):
+                (foreground, background) = ("#FFFFFF", "#000000")
+                if color_lines is not None:
+                    color_code = color_lines[i][j]
+                    (foreground, background) = color_map.get (color_code, ("#FFFFFF", "#000000"))
+                if x + j >= self.width:
+                    break
+                line[x + j].set_value (ord (c), foreground, background)
 
 class List (Widget):
     def __init__ (self):
@@ -285,12 +301,56 @@ class Bar (Widget):
         return (1, 0)
 
     def render (self, frame):
-        text = ''
-        if self.title != '':
-            text = self.title
-        while len (text) < frame.width:
-            text += ' '
-        frame.render_text (0, 0, text, background = curses.COLOR_BLUE)
+        frame.clear ("#0000FF")
+        frame.render_text (0, 0, self.title, background = "#0000FF")
+
+class Tabs (Widget):
+    def __init__ (self):
+        Widget.__init__ (self)
+        self.tabs = []
+
+    def add_child (self, label):
+        self.tabs.append (label)
+
+    def get_size (self):
+        return (1, 0)
+
+    def render (self, frame):
+        frame.clear ("#0000FF")
+        row = 0
+        for label in self.tabs:
+            text = label + '│'
+            frame.render_text (row, 0, text, background = "#0000FF")
+            row += len (text)
+
+class PythonLogo (Widget):
+    def get_size (self):
+        return (6, 23)
+
+    def render (self, frame):
+        lines  = [ '▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄',
+                   '   ▟•█▙       ╷╷       ',
+                   ' ▟█▇▇█▛█▙ ╭╮╷╷┼├╮╭╮┌╮™ ',
+                   ' ▜█▟█▁▁█▛ ├╯╰┤╵╵╵╰╯╵╵  ',
+                   '   ▜█•▛   ╵ ╶╯         ',
+                   '▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀' ]
+        colors = [ '=======================',
+                   '---BEBB----------------',
+                   '-BBBBBbYY--------------',
+                   '-BByYxxYY--------------',
+                   '---YYeY----------------',
+                   '=======================' ]
+        color_codes = {'=': ("#FFFFFF",  "#000000"), # FIXME: Inherit from background
+                       '-': ("#000000",  "#FFFFFF"),
+                       'B': ("#0000FF",   "#FFFFFF"),
+                       'b': ("#0000FF",   "#FFFF00"),
+                       'E': ("#FFFFFF",  "#0000FF"),
+                       'Y': ("#FFFF00", "#FFFFFF"),
+                       'y': ("#FFFF00", "#0000FF"),
+                       'x': ("#FFFFFF",  "#FFFF00"),
+                       'e': ("#FFFFFF",  "#FFFF00")}
+
+        frame.render_image (0, 0, lines, colors, color_codes)
 
 class TextBuffer:
     def __init__ (self):
@@ -418,7 +478,7 @@ class TextView (Widget):
         line_number_column_width = self.get_line_number_column_width ()
         for y in range (self.start_line, min (len (self.buffer.lines), frame.height + self.start_line)):
             line_number = '%d' % (y + 1)
-            frame.render_text (line_number_column_width - len (line_number) - 1, y - self.start_line, line_number, curses.COLOR_CYAN)
+            frame.render_text (line_number_column_width - len (line_number) - 1, y - self.start_line, line_number, "#00FFFF")
             frame.render_text (line_number_column_width, y - self.start_line, self.buffer.lines[y])
 
         frame.cursor = (self.cursor[0] - self.start_line, min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
@@ -645,13 +705,17 @@ class Pride:
         self.main_list = List ()
         self.stack.add_child (self.main_list)
 
-        self.editor_bar = Bar ('Editor)')
+        self.editor_tabs = Tabs ()
+        self.editor_tabs.add_child ('main.py')
+        self.editor_tabs.add_child ('README.md')
+        self.editor_tabs.add_child ('code.txt')
+        self.main_list.add_child (self.editor_tabs)
+
         self.buffer = TextBuffer ()
         self.editor = TextView (self.buffer)
-        self.main_list.add_child (self.editor_bar)
         self.main_list.add_child (self.editor)
 
-        self.console_bar = Bar ('Console)')
+        self.console_bar = Bar ('Python')
         self.console = Console ()
         self.main_list.add_child (self.console_bar)
         self.main_list.add_child (self.console)
@@ -662,8 +726,8 @@ class Pride:
         self.help_window.visible = False
         self.stack.add_child (self.help_window)
 
-        help_label = Label ('Help Me!')
-        self.help_window.set_child (help_label)
+        python_logo = PythonLogo ()
+        self.help_window.set_child (python_logo)
 
     def run (self):
         try:
@@ -694,7 +758,34 @@ class Pride:
         (max_lines, max_width) = self.screen.getmaxyx ()
         frame = Frame (max_width, max_lines)
         self.stack.render (frame)
-        color_index = 0
+
+        # FIXME: Only if support colors, otherwise fallback to closest match
+        colors = {}
+        def get_color (color):
+            i = colors.get (color)
+            if i is None:
+                i = len (colors) + 1
+                # FIXME: Validate color
+                curses.init_color (i,
+                                   1000 * int (color[1:3], 16) // 255,
+                                   1000 * int (color[3:5], 16) // 255,
+                                   1000 * int (color[5:], 16) // 255)
+                colors[color] = i
+            return i
+
+        color_pairs = {}
+        def get_color_pair (foreground, background):
+            i = color_pairs.get ((foreground, background))
+            if i is None:
+                i = len (color_pairs) + 1
+                curses.init_pair (i, get_color (foreground), get_color (background))
+                color_pairs[(foreground, background)] = i
+            return i
+
+        for y in range (frame.height):
+            for x in range (frame.width):
+                pixel = frame.buffer[y][x]
+                get_color_pair (pixel.foreground, pixel.background)
         for y in range (frame.height):
             text = ''
             current_color = (None, None)
@@ -703,11 +794,7 @@ class Pride:
                 # FIXME: Can't place in bottom right for some reason
                 if y == frame.height - 1 and x == frame.width - 1:
                     break
-                if (pixel.foreground, pixel.background) != current_color:
-                    color_index += 1 # FIXME: Lookup table for existing colors
-                    curses.init_pair (color_index, pixel.foreground, pixel.background)
-                    current_color = (pixel.foreground, pixel.background)
-                self.screen.addstr (y, x, chr (pixel.character), curses.color_pair (color_index))
+                self.screen.addstr (y, x, chr (pixel.character), curses.color_pair (get_color_pair (pixel.foreground, pixel.background)))
 
         (cursor_y, cursor_x) = frame.cursor
         self.screen.move (cursor_y, cursor_x)
@@ -756,7 +843,7 @@ class Pride:
 
     def update_visibility (self):
         focus_child = self.main_list.focus_child
-        self.editor_bar.visible = not self.fullscreen or focus_child is self.editor
+        self.editor_tabs.visible = not self.fullscreen or focus_child is self.editor
         self.editor.visible = not self.fullscreen or focus_child is self.editor
         self.console_bar.visible = not self.fullscreen or focus_child is self.console
         self.console.visible = not self.fullscreen or focus_child is self.console
