@@ -195,8 +195,8 @@ class Bar (Widget):
         if self.title != '':
             text = self.title
         while len (text) < frame.width:
-            text += 'X'
-        frame.render_text (0, 0, text, curses.COLOR_RED)
+            text += ' '
+        frame.render_text (0, 0, text, background = curses.COLOR_BLUE)
 
 class TextBuffer:
     def __init__ (self):
