@@ -10,11 +10,10 @@
 
 # ＰｒＩＤＥ
 
-import sys
-import os
 import curses
 import selectors
 import ui
+import unicodedata
 
 class PythonLogo (ui.Widget):
     def get_size (self):
@@ -101,7 +100,7 @@ class Pride:
         self.editor = ui.TextView (self.buffer)
         self.main_list.add_child (self.editor)
 
-        self.console_bar = ui.Bar ('Python')
+        self.console_bar = ui.Bar (unicodedata.lookup ('SNAKE') + ' Python')
         self.console = ui.Console (self.selector)
         self.main_list.add_child (self.console_bar)
         self.main_list.add_child (self.console)

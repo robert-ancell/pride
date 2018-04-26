@@ -6,6 +6,8 @@
 # version. See http://www.gnu.org/copyleft/gpl.html the full text of the
 # license.
 
+import unicodedata
+
 class Pixel:
     def __init__ (self):
         self.set_value (ord (' '))
@@ -56,10 +58,15 @@ class Frame:
         if y >= self.height:
             return
         line = self.buffer[y]
-        for (i, c) in enumerate (text):
-            if x + i >= self.width:
+        x_ = x
+        for c in text:
+            if x_ >= self.width:
                 break
-            line[x + i].set_value (ord (c), foreground, background)
+            line[x_].set_value (ord (c), foreground, background)
+            if unicodedata.east_asian_width (c) in ('W', 'F'):
+                x_ += 2
+            else:
+                x_ += 1
 
     def render_image (self, x, y, lines, color_lines = None, color_map = None):
         for (i, source_line) in enumerate (lines):

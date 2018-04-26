@@ -9,6 +9,7 @@
 import curses
 import selectors
 import sys
+import unicodedata
 
 from .frame import Frame
 from .widget import Widget
@@ -67,12 +68,18 @@ class Display (Widget):
         for y in range (frame.height):
             text = ''
             current_color = (None, None)
-            for x in range (frame.width):
+            x = 0
+            while x < frame.width:
                 pixel = frame.buffer[y][x]
                 # FIXME: Can't place in bottom right for some reason
                 if y == frame.height - 1 and x == frame.width - 1:
                     break
-                self.screen.addstr (y, x, chr (pixel.character), curses.color_pair (get_color_pair (pixel.foreground, pixel.background)))
+                c = chr (pixel.character)
+                self.screen.addstr (y, x, c, curses.color_pair (get_color_pair (pixel.foreground, pixel.background)))
+                if unicodedata.east_asian_width (c) in ('W', 'F'):
+                    x += 2
+                else:
+                    x += 1
 
         (cursor_y, cursor_x) = frame.cursor
         self.screen.move (cursor_y, cursor_x)
