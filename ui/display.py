@@ -22,6 +22,7 @@ class Display (Widget):
         self.screen = screen
         self.child = None
         self.selector.register (sys.stdin, selectors.EVENT_READ)
+        self.screen.nodelay (True)
 
     def set_child (self, child):
         self.child = child
@@ -78,52 +79,55 @@ class Display (Widget):
         self.screen.refresh ()
 
     def handle_input (self):
-        key = self.screen.getch ()
-        if key >= 0x20 and key <= 0x7F:
-            self.handle_event (CharacterInputEvent (key)) # FIXME: Handle UTF-8
-        elif key == ord ('\n'):
-            self.handle_event (KeyInputEvent (Key.ENTER))
-        elif key == ord ('\t'):
-            self.handle_event (KeyInputEvent (Key.TAB))
-        elif key == curses.KEY_F1:
-            self.handle_event (KeyInputEvent (Key.F1))
-        elif key == curses.KEY_F2:
-            self.handle_event (KeyInputEvent (Key.F2))
-        elif key == curses.KEY_F3:
-            self.handle_event (KeyInputEvent (Key.F3))
-        elif key == curses.KEY_F4:
-            self.handle_event (KeyInputEvent (Key.F4))
-        elif key == curses.KEY_F5:
-            self.handle_event (KeyInputEvent (Key.F5))
-        elif key == curses.KEY_F6:
-            self.handle_event (KeyInputEvent (Key.F6))
-        elif key == curses.KEY_F7:
-            self.handle_event (KeyInputEvent (Key.F7))
-        elif key == curses.KEY_F8:
-            self.handle_event (KeyInputEvent (Key.F8))
-        elif key == curses.KEY_F9:
-            self.handle_event (KeyInputEvent (Key.F9))
-        elif key == curses.KEY_UP:
-            self.handle_event (KeyInputEvent (Key.UP))
-        elif key == curses.KEY_DOWN:
-            self.handle_event (KeyInputEvent (Key.DOWN))
-        elif key == curses.KEY_LEFT:
-            self.handle_event (KeyInputEvent (Key.LEFT))
-        elif key == curses.KEY_RIGHT:
-            self.handle_event (KeyInputEvent (Key.RIGHT))
-        elif key == curses.KEY_HOME:
-            self.handle_event (KeyInputEvent (Key.HOME))
-        elif key == curses.KEY_END:
-            self.handle_event (KeyInputEvent (Key.END))
-        elif key == curses.KEY_NPAGE:
-            self.handle_event (KeyInputEvent (Key.PAGE_DOWN))
-        elif key == curses.KEY_PPAGE:
-            self.handle_event (KeyInputEvent (Key.PAGE_UP))
-        elif key == curses.KEY_BACKSPACE:
-            self.handle_event (KeyInputEvent (Key.BACKSPACE))
-        elif key == curses.KEY_DC:
-            self.handle_event (KeyInputEvent (Key.DELETE))
-        elif key == curses.KEY_IC:
-            self.handle_event (KeyInputEvent (Key.INSERT))
-        else:
-            open ('debug.log', 'a').write ('Unknown input {}\n'.format (repr (key)))
+        while True:
+            key = self.screen.getch ()
+            if key == -1:
+                return
+            if key >= 0x20 and key <= 0x7F:
+                self.handle_event (CharacterInputEvent (key)) # FIXME: Handle UTF-8
+            elif key == ord ('\n'):
+                self.handle_event (KeyInputEvent (Key.ENTER))
+            elif key == ord ('\t'):
+                self.handle_event (KeyInputEvent (Key.TAB))
+            elif key == curses.KEY_F1:
+                self.handle_event (KeyInputEvent (Key.F1))
+            elif key == curses.KEY_F2:
+                self.handle_event (KeyInputEvent (Key.F2))
+            elif key == curses.KEY_F3:
+                self.handle_event (KeyInputEvent (Key.F3))
+            elif key == curses.KEY_F4:
+                self.handle_event (KeyInputEvent (Key.F4))
+            elif key == curses.KEY_F5:
+                self.handle_event (KeyInputEvent (Key.F5))
+            elif key == curses.KEY_F6:
+                self.handle_event (KeyInputEvent (Key.F6))
+            elif key == curses.KEY_F7:
+                self.handle_event (KeyInputEvent (Key.F7))
+            elif key == curses.KEY_F8:
+                self.handle_event (KeyInputEvent (Key.F8))
+            elif key == curses.KEY_F9:
+                self.handle_event (KeyInputEvent (Key.F9))
+            elif key == curses.KEY_UP:
+                self.handle_event (KeyInputEvent (Key.UP))
+            elif key == curses.KEY_DOWN:
+                self.handle_event (KeyInputEvent (Key.DOWN))
+            elif key == curses.KEY_LEFT:
+                self.handle_event (KeyInputEvent (Key.LEFT))
+            elif key == curses.KEY_RIGHT:
+                self.handle_event (KeyInputEvent (Key.RIGHT))
+            elif key == curses.KEY_HOME:
+                self.handle_event (KeyInputEvent (Key.HOME))
+            elif key == curses.KEY_END:
+                self.handle_event (KeyInputEvent (Key.END))
+            elif key == curses.KEY_NPAGE:
+                self.handle_event (KeyInputEvent (Key.PAGE_DOWN))
+            elif key == curses.KEY_PPAGE:
+                self.handle_event (KeyInputEvent (Key.PAGE_UP))
+            elif key == curses.KEY_BACKSPACE:
+                self.handle_event (KeyInputEvent (Key.BACKSPACE))
+            elif key == curses.KEY_DC:
+                self.handle_event (KeyInputEvent (Key.DELETE))
+            elif key == curses.KEY_IC:
+                self.handle_event (KeyInputEvent (Key.INSERT))
+            else:
+                open ('debug.log', 'a').write ('Unknown input {}\n'.format (repr (key)))
