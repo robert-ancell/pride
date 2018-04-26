@@ -14,320 +14,9 @@ import sys
 import os
 import curses
 import selectors
-import pty
-import subprocess
-import signal
-import unicodedata
-import xml.etree.ElementTree as ET
+import ui
 
-class Widget:
-    def __init__ (self):
-        self.visible = True
-
-    def get_size (self):
-        return (0, 0)
-
-    def handle_event (self, event):
-        if isinstance (event, CharacterInputEvent):
-            self.handle_character_event (event)
-        elif isinstance (event, KeyInputEvent):
-            self.handle_key_event (event)
-
-    def handle_character_event (self, event):
-        pass
-
-    def handle_key_event (self, event):
-        pass
-
-    def render (self, frame):
-        pass
-
-class Pixel:
-    def __init__ (self):
-        self.set_value (ord (' '))
-
-    def set_value (self, character, foreground = "#FFFFFF", background = "#000000"):
-        self.character = character
-        self.foreground = foreground
-        self.background = background
-
-    def copy (self, pixel):
-        self.character = pixel.character
-        self.foreground = pixel.foreground
-        self.background = pixel.background
-
-class InputEvent:
-    def __init__ (self):
-        pass
-
-class CharacterInputEvent (InputEvent):
-    def __init__ (self, character):
-        self.character = character
-
-    def __str__ (self):
-        return 'CharacterInputEvent({})'.format (self.character)
-
-class KeyInputEvent (InputEvent):
-    def __init__ (self, key):
-        self.key = key
-
-    def __str__ (self):
-        return 'KeyInputEvent({})'.format (self.key)
-
-class CursorInputEvent (InputEvent):
-    def __init__ (self, line_step, row_step, relative = True):
-        self.line_step = line_step
-        self.row_step = row_step
-        self.relative = relative
-
-    def __str__ (self):
-        return 'CursorInputEvent(line_step = {}, row_step = {}, relative = {})'.format (self.line_step, self.row_step, self.relative)
-
-class Frame:
-    def __init__ (self, width, height):
-        self.width = width
-        self.height = height
-        self.buffer = []
-        for y in range (height):
-            line = []
-            for x in range (width):
-                line.append (Pixel ())
-            self.buffer.append (line)
-        self.cursor = (0, 0)
-
-    def clear (self, color = "#000000"):
-        self.fill (0, 0, self.width, self.height, ord (' '), background = color)
-
-    def fill (self, x, y, width, height, character, foreground = "#FFFFFF", background = "#000000"):
-        height = min (height, self.height)
-        width = min (width, self.width)
-        for y_ in range (y, height):
-            for x_ in range (x, width):
-                self.buffer[y_][x_].set_value (character, foreground, background)
-
-    def composite (self, x, y, frame):
-        # FIXME: Make SubFrame that re-uses buffer?
-        width = min (self.width - x, frame.width)
-        height = min (self.height - y, frame.height)
-        for y_ in range (height):
-            source_line = frame.buffer[y_]
-            target_line = self.buffer[y + y_]
-            for x_ in range (width):
-                target_line[x + x_].copy (source_line[x_])
-
-    def render_text (self, x, y, text, foreground = "#FFFFFF", background = "#000000"):
-        if y >= self.height:
-            return
-        line = self.buffer[y]
-        for (i, c) in enumerate (text):
-            if x + i >= self.width:
-                break
-            line[x + i].set_value (ord (c), foreground, background)
-
-    def render_image (self, x, y, lines, color_lines = None, color_map = None):
-        for (i, source_line) in enumerate (lines):
-            if y + i >= self.height:
-                return
-            line = self.buffer[y + i]
-            for (j, c) in enumerate (source_line):
-                (foreground, background) = ("#FFFFFF", "#000000")
-                if color_lines is not None:
-                    color_code = color_lines[i][j]
-                    (foreground, background) = color_map.get (color_code, ("#FFFFFF", "#000000"))
-                if x + j >= self.width:
-                    break
-                line[x + j].set_value (ord (c), foreground, background)
-
-class List (Widget):
-    def __init__ (self):
-        Widget.__init__ (self)
-        self.focus_child = None
-        self.children = []
-
-    def add_child (self, child, index = -1):
-        if index >= 0:
-            self.children.insert (child, index)
-        else:
-            self.children.append (child)
-
-    def focus (self, child):
-        self.focus_child = child
-
-    def handle_event (self, event):
-        if self.focus_child is None:
-            return
-        self.focus_child.handle_event (event)
-
-    def render (self, frame):
-        visible_children = []
-        for child in self.children:
-            if child.visible:
-                visible_children.append (child)
-
-        # Allocate space for children
-        n_unallocated = 0
-        n_remaining = frame.height
-        child_heights = {}
-        for child in visible_children:
-            size = child.get_size ()
-            if size[0] == 0:
-                n_unallocated += 1
-            child_heights[child] = size[0]
-            n_remaining -= size[0]
-
-        # Divide remaining space between children
-        if n_unallocated != 0 and n_remaining > 0:
-            # FIXME: Use per widget weighting 0.0 - 1.0
-            height_per_child = n_remaining // n_unallocated
-            extra = n_remaining - height_per_child * n_unallocated
-            for child in visible_children:
-                if child_heights[child] == 0:
-                    child_heights[child] = height_per_child
-                    if extra > 0:
-                        child_heights[child] += 1
-                        extra -= 1
-
-        line_offset = 0
-        for child in visible_children:
-            height = child_heights[child]
-            child_frame = Frame (frame.width, height)
-            child.render (child_frame)
-            frame.composite (0, line_offset, child_frame)
-            if child is self.focus_child:
-                frame.cursor = (line_offset + child_frame.cursor[0], child_frame.cursor[1])
-            line_offset += height
-
-class Stack (Widget):
-    def __init__ (self):
-        Widget.__init__ (self)
-        self.children = []
-
-    def add_child (self, child):
-        self.children.insert (0, child)
-
-    def raise_child (self, child):
-        self.children.remove (child)
-        self.children.insert (0, child)
-
-    def get_size (self):
-        return (0, 0) # FIXME: Use smallest size that all children can fit in
-
-    def handle_event (self, event):
-        open ('debug.log', 'a').write ('stack key {}\n'.format (event))
-        for child in self.children:
-            if child.visible:
-                child.handle_event (event)
-                return
-
-    def render (self, frame):
-        # FIXME: Work out if widgets would be covered and skip rendering
-        # FIXME: Take colour out of covered children
-        have_cursor = False
-        for child in reversed (self.children):
-            if not child.visible:
-                continue
-            (height, width) = child.get_size ()
-            if width == 0:
-                width = frame.width
-            if height == 0:
-                height = frame.height
-            child_frame = Frame (width, height)
-            child.render (child_frame)
-            x_offset = (frame.width - width) // 2
-            y_offset = (frame.height - height) // 2
-            frame.composite (x_offset, y_offset, child_frame)
-            if not have_cursor:
-                frame.cursor = (child_frame.cursor[0] + y_offset, child_frame.cursor[1] + x_offset)
-
-class Label (Widget):
-    def __init__ (self, text):
-        Widget.__init__ (self)
-        self.text = text
-
-    def get_size (self):
-        max_width = 0
-        lines = self.text.split ('\n')
-        for line in lines:
-            max_width = max (max_width, len (line))
-        return (len (lines), max_width)
-
-    def render (self, frame):
-        # FIXME: alignment, multi-line
-        frame.render_text (0, 0, self.text)
-
-class Box (Widget):
-    def __init__ (self):
-        Widget.__init__ (self)
-        self.child = None
-
-    def set_child (self, child):
-        self.child = child
-
-    def handle_event (self, event):
-        if self.child is None:
-            return
-        if self.child.visible:
-            self.child.handle_event (event)
-
-    def get_size (self):
-        if self.child is not None and self.child.visible:
-            (height, width) = self.child.get_size ()
-        else:
-            (height, width) = (0, 0)
-        return (height + 2, width + 2)
-
-    def render (self, frame):
-        if self.child is not None and self.child.visible:
-            child_frame = Frame (frame.width - 2, frame.height - 2)
-            self.child.render (child_frame)
-            frame.composite (1, 1, child_frame)
-        # FIXME: Different styles
-        frame.render_text (0, 0, '╭')
-        frame.render_text (frame.width - 1, 0, '╮')
-        frame.render_text (0, frame.height - 1, '╰')
-        frame.render_text (frame.width - 1, frame.height - 1, '╯')
-        for x in range (1, frame.width - 1):
-            frame.render_text (x, 0, '─')
-            frame.render_text (x, frame.height - 1, '─')
-        for y in range (1, frame.height - 1):
-            frame.render_text (0, y, '│')
-            frame.render_text (frame.width - 1, y, '│')
-
-class Bar (Widget):
-    def __init__ (self, title = ''):
-        Widget.__init__ (self)
-        self.title = title
-
-    def set_title (self, text):
-        self.title = title
-
-    def get_size (self):
-        return (1, 0)
-
-    def render (self, frame):
-        frame.clear ("#0000FF")
-        frame.render_text (0, 0, self.title, background = "#0000FF")
-
-class Tabs (Widget):
-    def __init__ (self):
-        Widget.__init__ (self)
-        self.tabs = []
-
-    def add_child (self, label):
-        self.tabs.append (label)
-
-    def get_size (self):
-        return (1, 0)
-
-    def render (self, frame):
-        frame.clear ("#0000FF")
-        row = 0
-        for label in self.tabs:
-            text = label + '│'
-            frame.render_text (row, 0, text, background = "#0000FF")
-            row += len (text)
-
-class PythonLogo (Widget):
+class PythonLogo (ui.Widget):
     def get_size (self):
         return (6, 23)
 
@@ -344,588 +33,89 @@ class PythonLogo (Widget):
                    '-BByYxxYY--------------',
                    '---YYeY----------------',
                    '=======================' ]
-        color_codes = {'=': ("#FFFFFF",  "#000000"), # FIXME: Inherit from background
-                       '-': ("#000000",  "#FFFFFF"),
-                       'B': ("#0000FF",   "#FFFFFF"),
-                       'b': ("#0000FF",   "#FFFF00"),
-                       'E': ("#FFFFFF",  "#0000FF"),
+        color_codes = {'=': ("#FFFFFF", "#000000"), # FIXME: Inherit from background
+                       '-': ("#000000", "#FFFFFF"),
+                       'B': ("#0000FF", "#FFFFFF"),
+                       'b': ("#0000FF", "#FFFF00"),
+                       'E': ("#FFFFFF", "#0000FF"),
                        'Y': ("#FFFF00", "#FFFFFF"),
                        'y': ("#FFFF00", "#0000FF"),
-                       'x': ("#FFFFFF",  "#FFFF00"),
-                       'e': ("#FFFFFF",  "#FFFF00")}
+                       'x': ("#FFFFFF", "#FFFF00"),
+                       'e': ("#FFFFFF", "#FFFF00")}
 
         frame.render_image (0, 0, lines, colors, color_codes)
 
-class EmojiDialog (Widget):
-    def __init__ (self):
-        Widget.__init__ (self)
-        self.selected = (0, 0)
-        self.filter = ''
+class PrideDisplay (ui.Display):
+    def __init__ (self, app, selector, screen):
+        ui.Display.__init__ (self, selector, screen)
+        self.app = app
 
-        class Character:
-            def __init__ (self, character, names):
-                self.character = character
-                self.names = names
-        self.characters = []
-        tree = ET.parse ('emoji.xml')
-        root = tree.getroot ()
-        for c0 in root:
-            if c0.tag == 'annotations':
-                for c1 in c0:
-                    if c1.tag == 'annotation':
-                        if c1.get ('type', '') == 'tts':
-                            continue
-                        cp = c1.get ('cp')
-                        if len (cp) > 1:
-                            continue
-                        # Skip skin tones, as we don't support combining characters
-                        if ord (cp) >= 0x1f3fb and ord (cp) <= 0x1f3ff:
-                            continue
-
-                        names = []
-                        for name in c1.text.split ('|'):
-                            names.append (name.strip ().lower ())
-
-                        self.characters.append (Character (cp, names))
-
-    def get_characters (self, query):
-        exact_matches = []
-        prefix_matches = []
-        matches = []
-        for c in self.characters:
-            def matches_exact (query, names):
-                for name in names:
-                    if name == query:
-                        return True
-                return False
-            def matches_prefix (query, names):
-                for name in names:
-                    if name.startswith (query):
-                        return True
-                return False
-            def matches_segment (query, names):
-                for name in names:
-                    if query in name:
-                        return True
-                return False
-            if matches_exact (query, c.names):
-                exact_matches.append (c.character)
-            elif matches_prefix (query, c.names):
-                prefix_matches.append (c.character)
-            elif matches_segment (query, c.names):
-                matches.append (c.character)
-
-        return exact_matches + prefix_matches + matches
-
-    def handle_key_event (self, event):
-        open ('debug.log', 'a').write ('emoji key {}\n'.format (event.key))
-        if event.key == curses.KEY_BACKSPACE:
-            self.filter = self.filter[:-1]
-            self.selected = (0, 0)
-        elif event.key == curses.KEY_UP:
-            self.selected = (max (self.selected[0] - 1, 0), self.selected[1])
-        elif event.key == curses.KEY_DOWN:
-            self.selected = (min (self.selected[0] + 1, self.n_rows - 1), self.selected[1])
-        elif event.key == curses.KEY_LEFT:
-            self.selected = (self.selected[0], max (self.selected[1] - 1, 0))
-        elif event.key == curses.KEY_RIGHT:
-            self.selected = (self.selected[0], min (self.selected[1] + 1, self.n_cols - 1))
-
-    def handle_character_event (self, event):
-        if event.character == ord ('\n'):
-            self.visible = False
-        else:
-            self.filter += chr (event.character)
-            self.selected = (0, 0)
-
-    def render (self, frame):
-        matched_characters = self.get_characters (self.filter)
-
-        # FIXME: Move outside of this widget
-        vborder = 10
-        hborder = 40
-
-        self.n_rows = (frame.height - 1 - vborder * 2) // 2
-        self.n_cols = (frame.width - 1 - hborder * 2) // 3
-
-        line = vborder
-        if self.selected == (0, 0):
-            text = '┏'
-        else:
-            text = '╭'
-        for c in range (self.n_cols):
-            if c != 0:
-                if self.selected == (0, c - 1):
-                    text += '┱'
-                elif self.selected == (0, c):
-                    text += '┲'
+    def handle_event (self, event):
+        open ('debug.log', 'a').write ('EVENT {}\n'.format (event))
+        if isinstance (event, ui.KeyInputEvent):
+            if event.key == ui.Key.F1:
+                self.app.help_window.visible = not self.app.help_window.visible
+                if self.app.help_window.visible:
+                    self.app.stack.raise_child (self.app.help_window)
+                return
+            elif event.key == ui.Key.F4: # FIXME: Handle in self.app.main_list.handle_event
+                if self.app.main_list.focus_child == self.app.editor:
+                    self.app.main_list.focus (self.app.console)
                 else:
-                    text += '┬'
-            if self.selected == (0, c):
-                text += '━━'
-            else:
-                text += '──'
-        if self.selected == (0, self.n_cols - 1):
-            text += '┓'
-        else:
-            text += '╮'
-        frame.render_text (hborder, line, text)
-        line += 1
-        character_index = 0
-        for r in range (self.n_rows):
-            if self.selected == (r, 0):
-                text = '┃'
-            else:
-                text = '│'
-            for c in range (self.n_cols):
-                if character_index < len (matched_characters):
-                    ch = matched_characters[character_index]
-                else:
-                    ch = ' '
-                character_index += 1
-                text += ch
-                if unicodedata.east_asian_width (ch) not in ('W', 'F'): # Defined in http://www.unicode.org/reports/tr11/#
-                    text += ' '
-                if self.selected == (r, c) or self.selected == (r, c + 1):
-                    text += '┃'
-                else:
-                    text += '│'
-            frame.render_text (hborder, line, text)
-            line += 1
-            if r < self.n_rows - 1:
-                if self.selected == (r, 0):
-                    text = '┡'
-                elif self.selected == (r + 1, 0):
-                    text = '┢'
-                else:
-                    text = '├'
-                for c in range (self.n_cols):
-                    if c != 0:
-                        if self.selected == (r, c):
-                            text += '╄'
-                        elif self.selected == (r + 1, c):
-                            text += '╆'
-                        elif self.selected == (r, c - 1):
-                            text += '╃'
-                        elif self.selected == (r + 1, c - 1):
-                            text += '╅'
-                        else:
-                            text += '┼'
-                    if self.selected == (r, c) or self.selected == (r + 1, c):
-                        text += '━━'
-                    else:
-                        text += '──'
-                if self.selected == (r, c):
-                    text += '┩'
-                elif self.selected == (r + 1, c):
-                    text += '┪'
-                else:
-                    text += '┤'
-            else:
-                if self.selected == (self.n_rows - 1, 0):
-                    text = '┗'
-                else:
-                    text = '╰'
-                for c in range (self.n_cols):
-                    if c != 0:
-                        if self.selected == (r, c):
-                            text += '┺'
-                        elif self.selected == (r, c - 1):
-                            text += '┹'
-                        else:
-                            text += '┴'
-                    if self.selected == (self.n_rows - 1, c):
-                        text += '━━'
-                    else:
-                        text += '──'
-                if self.selected == (self.n_rows - 1, self.n_cols - 1):
-                    text += '┛'
-                else:
-                    text += '╯'
-            frame.render_text (hborder, line, text)
-            line += 1
+                    self.app.main_list.focus (self.app.editor)
+                self.app.update_visibility ()
+                return
+            elif event.key == ui.Key.F5: # FIXME: Handle in self.app.main_list.handle_event
+                self.app.run_program ()
+                return
+            elif event.key == ui.Key.F8: # F11?
+                self.app.fullscreen = not self.app.fullscreen
+                self.app.update_visibility ()
+                return
+            elif event.key == ui.Key.INSERT:
+                self.app.emoji_dialog.visible = True
+                self.app.stack.raise_child (self.app.emoji_dialog)
+                return
 
-        frame.render_text (hborder + 1, vborder - 1, self.filter)
-        frame.cursor = (vborder - 1, hborder + 1 + len (self.filter))
-
-class TextBuffer:
-    def __init__ (self):
-        self.lines = []
-
-    def clear (self):
-        self.lines = []
-
-    # Ensure lines exists to requested position
-    def ensure_line (self, x, y):
-        while len (self.lines) <= y:
-            self.lines.append ('')
-        while len (self.lines[y]) < x:
-            self.lines[y] += ' '
-
-    def get_line_length (self, y):
-        if y >= len (self.lines):
-            return 0
-        return len (self.lines[y])
-
-    def insert (self, x, y, text):
-        self.ensure_line (x, y)
-        line = self.lines[y]
-        self.lines[y] = line[:x] + text + line[x:]
-
-    def overwrite (self, x, y, text):
-        self.ensure_line (x, y)
-        line = self.lines[y]
-        self.lines[y] = line[:x] + text + line[x + len (text):]
-
-    def insert_newline (self, x, y):
-        self.ensure_line (x, y)
-        line = self.lines[y]
-        self.lines[y] = line[:x]
-        self.lines.insert (y + 1, line[x:])
-
-    def merge_lines (self, y):
-        if y + 1 >= len (self.lines):
-            return
-        self.lines[y] = self.lines[y] + self.lines[y + 1]
-        self.lines.pop (y + 1)
-
-    def delete (self, x, y, count):
-        if y >= len (self.lines):
-            return
-        line = self.lines[y]
-        self.lines[y] = line[:x] + line[x + count:]
-
-class TextView (Widget):
-    def __init__ (self, buffer):
-        Widget.__init__ (self)
-        self.buffer = buffer
-        self.cursor = (0, 0)
-        self.start_line = 0
-
-    def get_current_line_length (self):
-        return self.buffer.get_line_length (self.cursor[0])
-
-    def anchor_cursor (self):
-        self.cursor = (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()))
-
-    def insert (self, text):
-        self.anchor_cursor ();
-        self.buffer.insert (self.cursor[1], self.cursor[0], text)
-        self.cursor = (self.cursor[0], self.cursor[1] + len (text))
-
-    def newline (self):
-        self.anchor_cursor ();
-        self.buffer.insert_newline (self.cursor[1], self.cursor[0])
-        self.cursor = (self.cursor[0] + 1, 0)
-
-    def backspace (self):
-        self.anchor_cursor ();
-        if self.cursor[1] == 0:
-            if self.cursor[0] > 0:
-                self.cursor = (self.cursor[0] - 1, len (self.buffer.lines[self.cursor[0] - 1]))
-                self.buffer.merge_lines (self.cursor[0])
-        else:
-            self.buffer.delete (self.cursor[1] - 1, self.cursor[0], 1)
-            self.cursor = (self.cursor[0], self.cursor[1] - 1)
-
-    def delete (self):
-        self.anchor_cursor ();
-        if self.cursor[1] == self.get_current_line_length ():
-            self.buffer.merge_lines (self.cursor[0])
-        else:
-            self.buffer.delete (self.cursor[1], self.cursor[0], 1)
-
-    def left (self):
-        self.anchor_cursor ();
-        self.cursor = (self.cursor[0], max (self.cursor[1] - 1, 0))
-
-    def right (self):
-        self.cursor = (self.cursor[0], min (self.cursor[1] + 1, self.get_current_line_length ()))
-
-    def up (self):
-        self.cursor = (max (self.cursor[0] - 1, 0), self.cursor[1])
-
-    def down (self):
-        self.cursor = (min (self.cursor[0] + 1, len (self.buffer.lines) - 1), self.cursor[1])
-
-    def home (self):
-        self.cursor = (self.cursor[0], 0)
-
-    def end (self):
-        self.cursor = (self.cursor[0], self.get_current_line_length ())
-
-    def next_page (self):
-        self.cursor = (len (self.buffer.lines) - 1, self.cursor[1])
-
-    def prev_page (self):
-        self.cursor = (0, self.cursor[1])
-
-    def get_line_number_column_width (self):
-        return len ('%d' % len (self.buffer.lines)) + 1
-
-    def render (self, frame):
-        # Scroll display to show cursor
-        while self.cursor[0] - self.start_line < 0:
-            self.start_line -= 1
-        while self.cursor[0] - self.start_line >= frame.height:
-            self.start_line += 1
-
-        frame.clear ()
-        line_number_column_width = self.get_line_number_column_width ()
-        for y in range (self.start_line, min (len (self.buffer.lines), frame.height + self.start_line)):
-            line_number = '%d' % (y + 1)
-            frame.render_text (line_number_column_width - len (line_number) - 1, y - self.start_line, line_number, "#00FFFF")
-            frame.render_text (line_number_column_width, y - self.start_line, self.buffer.lines[y])
-
-        frame.cursor = (self.cursor[0] - self.start_line, min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
-
-    def handle_character_event (self, event):
-        self.insert (chr (event.character))
-
-    def handle_key_event (self, event):
-        if event.key == curses.KEY_BACKSPACE:
-            self.backspace ()
-        elif event.key == curses.KEY_DC:
-            self.delete ()
-        elif event.key == curses.KEY_LEFT:
-            self.left ()
-        elif event.key == curses.KEY_RIGHT:
-            self.right ()
-        elif event.key == curses.KEY_UP:
-            self.up ()
-        elif event.key == curses.KEY_DOWN:
-            self.down ()
-        elif event.key == curses.KEY_HOME:
-            self.home ()
-        elif event.key == curses.KEY_END:
-            self.end ()
-        elif event.key == curses.KEY_NPAGE:
-            self.next_page ()
-        elif event.key == curses.KEY_PPAGE:
-            self.prev_page ()
-        elif event.key == '\t':
-            self.insert ('    ')
-        elif event.key == '\n':
-            self.newline ()
-        else:
-            open ('debug.log', 'a').write ('Unhandled editor key {}\n'.format (event.key))
-
-class Console (Widget):
-    def __init__ (self):
-        Widget.__init__ (self)
-        self.pid = 0
-        self.cursor = (0, 0)
-        self.buffer = TextBuffer ()
-
-    def run (self, args):
-        self.read_buffer = ''
-        last_line = 0
-        for (i, line) in enumerate (self.buffer.lines):
-            if line != '':
-                last_line = i
-        self.cursor = (last_line, 0)
-        if self.pid != 0:
-            os.kill (self.pid, signal.SIGTERM)
-        (self.pid, self.fd) = pty.fork ()
-        if self.pid == 0:
-            subprocess.run (args)
-            exit ()
-
-    def read (self):
-        try:
-            self.read_buffer += os.read (self.fd, 65535).decode ('utf-8') # FIXME: Use bytes
-        except:
-            os.close (self.fd) # FIXME: Should unregister fd
-            return False
-
-        # Process data
-        while self.read_buffer != '':
-            c = self.read_buffer[0]
-            #open ('debug.log', 'a').write ('Character {}\n'.format (ord (c)))
-            if c == '\033':
-                if len (self.read_buffer) == 1:
-                    return True
-                # ANSI CSI
-                if self.read_buffer[1] == '[':
-                    # Find end characters
-                    end = 2
-                    def is_csi_end (c):
-                        n = ord (c)
-                        return n >= 0x40 and n <= 0x7F;
-                    while end < len (self.read_buffer) and not is_csi_end (self.read_buffer[end]):
-                        end += 1
-                    if end >= len (self.read_buffer):
-                        return True # Not got full sequence, wait for more data
-
-                    code = self.read_buffer[end]
-                    params = self.read_buffer[2:end]
-                    #open ('debug.log', 'a').write ('console CSI code={} params={}\n'.format (code, params))
-                    self.read_buffer = self.read_buffer[end + 1:]
-                    if code == 'A': # CUU - cursor up
-                        count = 1
-                        if params != '':
-                            count = int (param)
-                        self.up (count)
-                    elif code == 'B': # CUD - cursor down
-                        count = 1
-                        if params != '':
-                            count = int (param)
-                        self.down (count)
-                    elif code == 'C': # CUF - cursor right
-                        count = 1
-                        if params != '':
-                            count = int (param)
-                        self.right (count)
-                    elif code == 'D': # CUB - cursor left
-                        count = 1
-                        if params != '':
-                            count = int (param)
-                        self.left (count)
-                    elif code == 'H': # CUP - cursor position
-                        line = 1
-                        col = 1
-                        if params != '':
-                            args = params.split (';')
-                            if len (args) > 0:
-                                line = int (args[0])
-                            if len (args) > 1:
-                                col = int (args[1])
-                        self.cursor = (line - 1, col - 1)
-                    elif code == 'J': # ED - erase display
-                        mode = params
-                        if mode == '' or mode == '0': # Erase cursor to end of display
-                            open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
-                        elif mode == '1': # Erase from start to cursor (inclusive)
-                            open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
-                        elif mode == '2': # Erase whole display
-                            self.buffer.clear ()
-                        else:
-                            open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
-                    elif code == 'K': # EL - erase line
-                        mode = params
-                        if mode == '' or mode == '0':
-                            self.buffer.delete (self.cursor[1], self.cursor[0], 9999) # FIXME: End of line...
-                        elif mode == '1':
-                            self.buffer.delete (0, self.cursor[0], self.cursor[1])
-                        elif mode == '2':
-                            self.buffer.delete (0, self.cursor[0], 9999) # FIXME: End of line...
-                        else:
-                            open ('debug.log', 'a').write ('Unknown EL mode={}\n'.format (params))
-                    elif code == 'P': # DCH - delete characters
-                        count = 1
-                        if params != '':
-                            count = int (params)
-                        self.buffer.delete (self.cursor[1], self.cursor[0], count)
-                    else:
-                        open ('debug.log', 'a').write ('Unknown CSI code={} params={}\n'.format (code, params))
-                else:
-                    # FIXME
-                    open ('debug.log', 'a').write ('Unknown escape code {}\n'.format (ord (c)))
-                    self.read_buffer = self.read_buffer[1:]
-            elif c == '\b': # BS
-                self.left (1)
-                self.read_buffer = self.read_buffer[1:]
-            elif c == '\a': # BEL
-                # FIXME: Flash bell symbol or similar?
-                self.read_buffer = self.read_buffer[1:]
-            elif c == '\r': # CR
-                self.cursor = (self.cursor[0], 0)
-                self.read_buffer = self.read_buffer[1:]
-            elif c == '\n': # LF
-                self.cursor = (self.cursor[0] + 1, 0)
-                self.read_buffer = self.read_buffer[1:]
-            elif ord (c) >= 0x20 and ord (c) <= 0x7E:
-                self.buffer.overwrite (self.cursor[1], self.cursor[0], c)
-                self.cursor = (self.cursor[0], self.cursor[1] + 1)
-                self.read_buffer = self.read_buffer[1:]
-            elif ord (c) & 0x80 != 0: # UTF-8
-                open ('debug.log', 'a').write ('FIXME: UTF-8\n')
-                self.read_buffer = self.read_buffer[1:]
-            else:
-                open ('debug.log', 'a').write ('Unknown character {}\n'.format (ord (c)))
-                self.read_buffer = self.read_buffer[1:]
-
-        return True
-
-    def left (self, count):
-        count = min (count, self.cursor[1])
-        self.cursor = (self.cursor[0], self.cursor[1] - count)
-
-    def right (self, count):
-        #FIXME: count = min (count, width - cursor[1])
-        self.cursor = (self.cursor[0], self.cursor[1] + count)
-
-    def up (self, count):
-        count = min (count, self.cursor[0])
-        self.cursor = (self.cursor[0] - count, self.cursor[1])
-
-    def down (self, count):
-        #FIXME: count = min (count, height - cursor[0])
-        self.cursor = (self.cursor[0] + count, self.cursor[1])
-
-    def render (self, frame):
-        frame.clear ()
-        for (y, line) in enumerate (self.buffer.lines):
-            frame.render_text (0, y, line)
-        frame.cursor = self.cursor
-
-    def handle_character_event (self, event):
-        os.write (self.fd, bytes (chr (event.character), 'utf-8'))
-
-    def handle_key_event (self, event):
-        if event.key == curses.KEY_BACKSPACE:
-            os.write (self.fd, '\b'.encode ('ascii'))
-        elif event.key == curses.KEY_DC:
-            os.write (self.fd, '\033[3~'.encode ('ascii'))
-        elif event.key == curses.KEY_UP:
-            os.write (self.fd, '\033[A'.encode ('ascii'))
-        elif event.key == curses.KEY_DOWN:
-            os.write (self.fd, '\033[B'.encode ('ascii'))
-        elif event.key == curses.KEY_RIGHT:
-            os.write (self.fd, '\033[C'.encode ('ascii'))
-        elif event.key == curses.KEY_LEFT:
-            os.write (self.fd, '\033[D'.encode ('ascii'))
-        elif event.key == curses.KEY_HOME:
-            os.write (self.fd, '\033[H'.encode ('ascii'))
-        elif event.key == curses.KEY_END:
-            os.write (self.fd, '\033[F'.encode ('ascii'))
+        self.app.stack.handle_event (event)
 
 class Pride:
     def __init__ (self, screen):
-        self.screen = screen
-        self.sel = selectors.DefaultSelector ()
+        self.selector = selectors.DefaultSelector ()
+        self.display = PrideDisplay (self, self.selector, screen)
         self.fullscreen = False
 
-        self.stack = Stack ()
+        self.stack = ui.Stack ()
+        self.display.set_child (self.stack)
 
-        self.main_list = List ()
+        self.main_list = ui.List ()
         self.stack.add_child (self.main_list)
 
-        self.editor_tabs = Tabs ()
+        self.editor_tabs = ui.Tabs ()
         self.editor_tabs.add_child ('main.py')
         self.editor_tabs.add_child ('README.md')
         self.editor_tabs.add_child ('code.txt')
         self.main_list.add_child (self.editor_tabs)
 
-        self.buffer = TextBuffer ()
-        self.editor = TextView (self.buffer)
+        self.buffer = ui.TextBuffer ()
+        self.editor = ui.TextView (self.buffer)
         self.main_list.add_child (self.editor)
 
-        self.console_bar = Bar ('Python')
-        self.console = Console ()
+        self.console_bar = ui.Bar ('Python')
+        self.console = ui.Console (self.selector)
         self.main_list.add_child (self.console_bar)
         self.main_list.add_child (self.console)
 
         self.main_list.focus (self.editor)
 
-        self.help_window = Box ()
+        self.help_window = ui.Box ()
         self.help_window.visible = False
         self.stack.add_child (self.help_window)
 
         python_logo = PythonLogo ()
         self.help_window.set_child (python_logo)
 
-        self.emoji_dialog = EmojiDialog ()
+        self.emoji_dialog = ui.EmojiDialog ()
         self.emoji_dialog.visible = False
         self.stack.add_child (self.emoji_dialog)
 
@@ -936,116 +126,20 @@ class Pride:
         except:
             pass
         self.console.run (['python3', '-q'])
-        self.sel.register (self.console.fd, selectors.EVENT_READ)
+        self.display.refresh ()
 
-        self.refresh ()
-        self.sel.register (sys.stdin, selectors.EVENT_READ)
         while True:
-            events = self.sel.select ()
+            events = self.selector.select ()
             for key, mask in events:
-                if key.fileobj == sys.stdin:
-                    self.handle_input ()
-                elif key.fd == self.console.fd:
-                    if not self.console.read ():
-                        pass
-                        # FIXME
-                        #self.sel.unregister (self.console.fd)
-                        #self.console.run (['python3', '-q'])
-                        #self.sel.register (self.console.fd, selectors.EVENT_READ)
-            self.refresh ()
-
-    def refresh (self):
-        (max_lines, max_width) = self.screen.getmaxyx ()
-        frame = Frame (max_width, max_lines)
-        self.stack.render (frame)
-
-        # FIXME: Only if support colors, otherwise fallback to closest match
-        colors = {}
-        def get_color (color):
-            i = colors.get (color)
-            if i is None:
-                i = len (colors) + 1
-                # FIXME: Validate color
-                curses.init_color (i,
-                                   1000 * int (color[1:3], 16) // 255,
-                                   1000 * int (color[3:5], 16) // 255,
-                                   1000 * int (color[5:], 16) // 255)
-                colors[color] = i
-            return i
-
-        color_pairs = {}
-        def get_color_pair (foreground, background):
-            i = color_pairs.get ((foreground, background))
-            if i is None:
-                i = len (color_pairs) + 1
-                curses.init_pair (i, get_color (foreground), get_color (background))
-                color_pairs[(foreground, background)] = i
-            return i
-
-        for y in range (frame.height):
-            for x in range (frame.width):
-                pixel = frame.buffer[y][x]
-                get_color_pair (pixel.foreground, pixel.background)
-        for y in range (frame.height):
-            text = ''
-            current_color = (None, None)
-            for x in range (frame.width):
-                pixel = frame.buffer[y][x]
-                # FIXME: Can't place in bottom right for some reason
-                if y == frame.height - 1 and x == frame.width - 1:
-                    break
-                self.screen.addstr (y, x, chr (pixel.character), curses.color_pair (get_color_pair (pixel.foreground, pixel.background)))
-
-        (cursor_y, cursor_x) = frame.cursor
-        self.screen.move (cursor_y, cursor_x)
-        self.screen.refresh ()
+                self.display.handle_selector_event (key, mask)
+                self.console.handle_selector_event (key, mask)
+            self.display.refresh ()
 
     def run_program (self):
         f = open ('main.py', 'w')
         f.write ('\n'.join (self.buffer.lines))
         f.close ()
-        if self.console.pid != 0:
-            self.sel.unregister (self.console.fd)
         self.console.run (['python3', 'main.py'])
-        self.sel.register (self.console.fd, selectors.EVENT_READ)
-
-    def handle_input (self):
-        key = self.screen.getch ()
-        if key <= 0x7F:
-            self.handle_event (CharacterInputEvent (key))
-        elif key > 0xFF:
-            self.handle_event (KeyInputEvent (key))
-        else:
-            open ('debug.log', 'a').write ('Unknown input {}\n'.format (repr (key)))
-
-    def handle_event (self, event):
-        open ('debug.log', 'a').write ('EVENT {}\n'.format (event))
-        if isinstance (event, KeyInputEvent):
-            if event.key == curses.KEY_F1:
-                self.help_window.visible = not self.help_window.visible
-                if self.help_window.visible:
-                    self.stack.raise_child (self.help_window)
-                return
-            elif event.key == curses.KEY_F4: # FIXME: Handle in self.main_list.handle_event
-                if self.main_list.focus_child == self.editor:
-                    self.main_list.focus (self.console)
-                else:
-                    self.main_list.focus (self.editor)
-                self.update_visibility ()
-                return
-            elif event.key == curses.KEY_F5: # FIXME: Handle in self.main_list.handle_event
-                self.run_program ()
-                return
-            elif event.key == curses.KEY_F8: # F11?
-                self.fullscreen = not self.fullscreen
-                self.update_visibility ()
-                return
-            elif event.key == curses.KEY_IC:
-                self.emoji_dialog.visible = True
-                self.stack.raise_child (self.emoji_dialog)
-                return
-
-        self.stack.handle_event (event)
 
     def update_visibility (self):
         focus_child = self.main_list.focus_child
