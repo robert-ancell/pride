@@ -6,6 +6,7 @@
 # version. See http://www.gnu.org/copyleft/gpl.html the full text of the
 # license.
 
+from .frame import Frame
 from .widget import Widget
 
 class Box (Widget):
