@@ -91,6 +91,7 @@ class Pride:
         self.stack.add_child (self.main_list)
 
         self.editor_tabs = ui.Tabs ()
+        self.editor_tabs.add_child (unicodedata.lookup ('PAGE FACING UP') + ' ')
         self.editor_tabs.add_child ('main.py')
         self.editor_tabs.add_child ('README.md')
         self.editor_tabs.add_child ('code.txt')
