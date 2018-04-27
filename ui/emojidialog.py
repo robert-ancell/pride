@@ -17,6 +17,7 @@ class EmojiDialog (Widget):
         Widget.__init__ (self)
         self.selected = (0, 0)
         self.filter = ''
+        self.placeholder_text = 'Search' # FIXME: Make translatable
 
         class Character:
             def __init__ (self, character, names):
@@ -200,5 +201,8 @@ class EmojiDialog (Widget):
             frame.render_text (0, line, text)
             line += 1
 
-        frame.render_text (1, 0, self.filter)
+        if self.filter != '':
+            frame.render_text (1, 0, self.filter)
+        else:
+            frame.render_text (1, 0, self.placeholder_text, foreground = "#808080")
         frame.cursor = (0, 1 + len (self.filter))
