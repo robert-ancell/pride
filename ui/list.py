@@ -14,6 +14,7 @@ class List (Widget):
         Widget.__init__ (self)
         self.focus_child = None
         self.children = []
+        self.set_scale (1.0, 1.0)
 
     def add_child (self, child, index = -1):
         if index >= 0:
@@ -36,33 +37,23 @@ class List (Widget):
                 visible_children.append (child)
 
         # Allocate space for children
-        n_unallocated = 0
-        n_remaining = frame.height
-        child_heights = {}
+        min_height = 0
+        total_scales = 0.0
         for child in visible_children:
-            size = child.get_size ()
-            if size[0] == 0:
-                n_unallocated += 1
-            child_heights[child] = size[0]
-            n_remaining -= size[0]
-
-        # Divide remaining space between children
-        if n_unallocated != 0 and n_remaining > 0:
-            # FIXME: Use per widget weighting 0.0 - 1.0
-            height_per_child = n_remaining // n_unallocated
-            extra = n_remaining - height_per_child * n_unallocated
-            for child in visible_children:
-                if child_heights[child] == 0:
-                    child_heights[child] = height_per_child
-                    if extra > 0:
-                        child_heights[child] += 1
-                        extra -= 1
+            (height, _) = child.get_size ()
+            min_height += height
+            total_scales += child.y_scale
+        min_height = min (min_height, frame.height)
 
         line_offset = 0
+        open ('debug.log', 'a').write ('start allocation\n')
         for child in visible_children:
-            height = child_heights[child]
+            (height, _) = child.get_size ()
+            open ('debug.log', 'a').write ('requested {}\n'.format (height))
+            height += int (child.y_scale * (frame.height - min_height) / total_scales) # FIXME: Handle remaining amount fairly - give integer amounts then remaining based on fractional amounts
+            open ('debug.log', 'a').write ('allocated {}\n'.format (height))
             child_frame = Frame (frame.width, height)
-            child.render (child_frame)
+            child.render_aligned (child_frame)
             frame.composite (0, line_offset, child_frame)
             if child is self.focus_child:
                 frame.cursor = (line_offset + child_frame.cursor[0], child_frame.cursor[1])

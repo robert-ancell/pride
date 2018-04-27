@@ -15,6 +15,10 @@ class TextView (Widget):
         self.buffer = buffer
         self.cursor = (0, 0)
         self.start_line = 0
+        self.set_scale (1.0, 1.0)
+
+    def get_size (self):
+        return (1, 1)
 
     def get_current_line_length (self):
         return self.buffer.get_line_length (self.cursor[0])

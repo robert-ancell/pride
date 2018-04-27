@@ -33,7 +33,7 @@ class Box (Widget):
     def render (self, frame):
         if self.child is not None and self.child.visible:
             child_frame = Frame (frame.width - 2, frame.height - 2)
-            self.child.render (child_frame)
+            self.child.render_aligned (child_frame)
             frame.composite (1, 1, child_frame)
         # FIXME: Different styles
         frame.render_text (0, 0, '╭')

@@ -12,6 +12,7 @@ class Tabs (Widget):
     def __init__ (self):
         Widget.__init__ (self)
         self.tabs = []
+        self.set_scale (1.0, 0.0)
 
     def add_child (self, label):
         self.tabs.append (label)

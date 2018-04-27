@@ -24,6 +24,10 @@ class Console (Widget):
         self.fd = -1
         self.cursor = (0, 0)
         self.buffer = TextBuffer ()
+        self.set_scale (1.0, 1.0)
+
+    def get_size (self):
+        return (1, 0)
 
     def handle_selector_event (self, key, mask):
         if key.fd == self.fd:

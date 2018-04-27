@@ -36,7 +36,7 @@ class Display (Widget):
         (max_lines, max_width) = self.screen.getmaxyx ()
         frame = Frame (max_width, max_lines)
         if self.child is not None:
-            self.child.render (frame)
+            self.child.render_aligned (frame)
 
         # FIXME: Only if support colors, otherwise fallback to closest match
         colors = {}

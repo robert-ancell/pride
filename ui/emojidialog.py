@@ -43,6 +43,10 @@ class EmojiDialog (Widget):
                             names.append (name.strip ().lower ())
 
                         self.characters.append (Character (cp, names))
+        self.set_scale (0.5, 0.5)
+
+    def get_size (self):
+        return (5, 4)
 
     def get_characters (self, query):
         exact_matches = []
@@ -96,14 +100,10 @@ class EmojiDialog (Widget):
     def render (self, frame):
         matched_characters = self.get_characters (self.filter)
 
-        # FIXME: Move outside of this widget
-        vborder = 10
-        hborder = 40
+        self.n_rows = (frame.height - 1) // 2
+        self.n_cols = (frame.width - 1) // 3
 
-        self.n_rows = (frame.height - 1 - vborder * 2) // 2
-        self.n_cols = (frame.width - 1 - hborder * 2) // 3
-
-        line = vborder
+        line = 1
         if self.selected == (0, 0):
             text = '┏'
         else:
@@ -124,7 +124,7 @@ class EmojiDialog (Widget):
             text += '┓'
         else:
             text += '╮'
-        frame.render_text (hborder, line, text)
+        frame.render_text (0, line, text)
         line += 1
         character_index = 0
         for r in range (self.n_rows):
@@ -145,7 +145,7 @@ class EmojiDialog (Widget):
                     text += '┃'
                 else:
                     text += '│'
-            frame.render_text (hborder, line, text)
+            frame.render_text (0, line, text)
             line += 1
             if r < self.n_rows - 1:
                 if self.selected == (r, 0):
@@ -197,8 +197,8 @@ class EmojiDialog (Widget):
                     text += '┛'
                 else:
                     text += '╯'
-            frame.render_text (hborder, line, text)
+            frame.render_text (0, line, text)
             line += 1
 
-        frame.render_text (hborder + 1, vborder - 1, self.filter)
-        frame.cursor = (vborder - 1, hborder + 1 + len (self.filter))
+        frame.render_text (1, 0, self.filter)
+        frame.cursor = (0, 1 + len (self.filter))

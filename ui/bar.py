@@ -12,6 +12,7 @@ class Bar (Widget):
     def __init__ (self, title = ''):
         Widget.__init__ (self)
         self.title = title
+        self.set_scale (1.0, 0.0)
 
     def set_title (self, text):
         self.title = title

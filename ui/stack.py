@@ -13,6 +13,7 @@ class Stack (Widget):
     def __init__ (self):
         Widget.__init__ (self)
         self.children = []
+        self.set_scale (1.0, 1.0)
 
     def add_child (self, child):
         self.children.insert (0, child)
@@ -22,7 +23,13 @@ class Stack (Widget):
         self.children.insert (0, child)
 
     def get_size (self):
-        return (0, 0) # FIXME: Use smallest size that all children can fit in
+        width = 0
+        height = 0
+        for child in self.children:
+            (h, w) = child.get_size ()
+            width = max (width, w)
+            height = max (height, h)
+        return (height, width)
 
     def handle_event (self, event):
         open ('debug.log', 'a').write ('stack key {}\n'.format (event))
@@ -38,15 +45,4 @@ class Stack (Widget):
         for child in reversed (self.children):
             if not child.visible:
                 continue
-            (height, width) = child.get_size ()
-            if width == 0:
-                width = frame.width
-            if height == 0:
-                height = frame.height
-            child_frame = Frame (width, height)
-            child.render (child_frame)
-            x_offset = (frame.width - width) // 2
-            y_offset = (frame.height - height) // 2
-            frame.composite (x_offset, y_offset, child_frame)
-            if not have_cursor:
-                frame.cursor = (child_frame.cursor[0] + y_offset, child_frame.cursor[1] + x_offset)
+            child.render_aligned (frame)
