@@ -72,7 +72,7 @@ class PrideDisplay (ui.Display):
                 self.app.update_visibility ()
                 return
             elif event.key == ui.Key.INSERT:
-                self.app.emoji_dialog.visible = True
+                self.app.emoji_dialog.visible = not self.app.emoji_dialog.visible
                 self.app.stack.raise_child (self.app.emoji_dialog)
                 return
 
