@@ -46,12 +46,9 @@ class List (Widget):
         min_height = min (min_height, frame.height)
 
         line_offset = 0
-        open ('debug.log', 'a').write ('start allocation\n')
         for child in visible_children:
             (height, _) = child.get_size ()
-            open ('debug.log', 'a').write ('requested {}\n'.format (height))
             height += int (child.y_scale * (frame.height - min_height) / total_scales) # FIXME: Handle remaining amount fairly - give integer amounts then remaining based on fractional amounts
-            open ('debug.log', 'a').write ('allocated {}\n'.format (height))
             child_frame = Frame (frame.width, height)
             child.render_aligned (child_frame)
             frame.composite (0, line_offset, child_frame)
