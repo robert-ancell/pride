@@ -9,10 +9,20 @@
 from .frame import Frame
 from .widget import Widget
 
+class BoxStyle:
+    SQUARE = 'square'
+    CURVED = 'curved'
+    BOLD   = 'bold'
+    DOUBLE = 'double'
+    WIDE   = 'wide'
+
 class Box (Widget):
-    def __init__ (self):
+    def __init__ (self, style = BoxStyle.CURVED, foreground = '#FFFFFF', background = '#000000'):
         Widget.__init__ (self)
         self.child = None
+        self.style = style
+        self.foreground = foreground
+        self.background = background
 
     def set_child (self, child):
         self.child = child
@@ -35,14 +45,67 @@ class Box (Widget):
             child_frame = Frame (frame.width - 2, frame.height - 2)
             self.child.render_aligned (child_frame)
             frame.composite (1, 1, child_frame)
-        # FIXME: Different styles
-        frame.render_text (0, 0, '╭')
-        frame.render_text (frame.width - 1, 0, '╮')
-        frame.render_text (0, frame.height - 1, '╰')
-        frame.render_text (frame.width - 1, frame.height - 1, '╯')
+        if self.style == BoxStyle.SQUARE:
+            top_left = '┌'
+            top_right = '┐'
+            bottom_left = '└'
+            bottom_right = '┘'
+            top_horizontal = '─'
+            bottom_horizontal = '─'
+            left_vertical = '│'
+            right_vertical = '│'
+        elif self.style == BoxStyle.CURVED:
+            top_left = '╭'
+            top_right = '╮'
+            bottom_left = '╰'
+            bottom_right = '╯'
+            top_horizontal = '─'
+            bottom_horizontal = '─'
+            left_vertical = '│'
+            right_vertical = '│'
+        elif self.style == BoxStyle.BOLD:
+            top_left = '┏'
+            top_right = '┓'
+            bottom_left = '┗'
+            bottom_right = '┛'
+            top_horizontal = '━'
+            bottom_horizontal = '━'
+            left_vertical = '┃'
+            right_vertical = '┃'
+        elif self.style == BoxStyle.DOUBLE:
+            top_left = '╔'
+            top_right = '╗'
+            bottom_left = '╚'
+            bottom_right = '╝'
+            top_horizontal = '═'
+            bottom_horizontal = '═'
+            left_vertical = '║'
+            right_vertical = '║'
+        elif self.style == BoxStyle.WIDE:
+            top_left = '▛'
+            top_right = '▜'
+            bottom_left = '▙'
+            bottom_right = '▟'
+            top_horizontal = '▀'
+            bottom_horizontal = '▄'
+            left_vertical = '▌'
+            right_vertical = '▐'
+        else:
+            top_left = '?'
+            top_right = '?'
+            bottom_left = '?'
+            bottom_right = '?'
+            top_horizontal = '?'
+            bottom_horizontal = '?'
+            left_vertical = '?'
+            right_vertical = '?'
+        frame.render_text (0, 0, top_left, self.foreground, self.background)
+        frame.render_text (frame.width - 1, 0, top_right, self.foreground, self.background)
+        frame.render_text (0, frame.height - 1, bottom_left, self.foreground, self.background)
+        frame.render_text (frame.width - 1, frame.height - 1, bottom_right, self.foreground, self.background)
         for x in range (1, frame.width - 1):
-            frame.render_text (x, 0, '─')
-            frame.render_text (x, frame.height - 1, '─')
+            frame.render_text (x, 0, top_horizontal, self.foreground, self.background)
+            frame.render_text (x, frame.height - 1, bottom_horizontal, self.foreground, self.background)
         for y in range (1, frame.height - 1):
-            frame.render_text (0, y, '│')
-            frame.render_text (frame.width - 1, y, '│')
+            frame.render_text (0, y, left_vertical, self.foreground, self.background)
+            frame.render_text (frame.width - 1, y, right_vertical, self.foreground, self.background)

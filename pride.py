@@ -16,6 +16,10 @@ import ui
 import unicodedata
 
 class PythonLogo (ui.Widget):
+    def __init__ (self, background = '#000000'):
+        ui.Widget.__init__ (self)
+        self.background = background
+
     def get_size (self):
         return (6, 23)
 
@@ -32,15 +36,15 @@ class PythonLogo (ui.Widget):
                    '-BByYxxYY--------------',
                    '---YYeY----------------',
                    '=======================' ]
-        color_codes = {'=': ("#FFFFFF", "#000000"), # FIXME: Inherit from background
-                       '-': ("#000000", "#FFFFFF"),
-                       'B': ("#0000FF", "#FFFFFF"),
-                       'b': ("#0000FF", "#FFFF00"),
-                       'E': ("#FFFFFF", "#0000FF"),
-                       'Y': ("#FFFF00", "#FFFFFF"),
-                       'y': ("#FFFF00", "#0000FF"),
-                       'x': ("#FFFFFF", "#FFFF00"),
-                       'e': ("#FFFFFF", "#FFFF00")}
+        color_codes = {'=': ('#FFFFFF', self.background),
+                       '-': ('#000000', '#FFFFFF'),
+                       'B': ('#0000FF', '#FFFFFF'),
+                       'b': ('#0000FF', '#FFFF00'),
+                       'E': ('#FFFFFF', '#0000FF'),
+                       'Y': ('#FFFF00', '#FFFFFF'),
+                       'y': ('#FFFF00', '#0000FF'),
+                       'x': ('#FFFFFF', '#FFFF00'),
+                       'e': ('#FFFFFF', '#FFFF00')}
 
         frame.render_image (0, 0, lines, colors, color_codes)
 
@@ -108,11 +112,11 @@ class Pride:
 
         self.main_list.focus (self.editor)
 
-        self.help_window = ui.Box ()
+        self.help_window = ui.Box (style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
         self.help_window.visible = False
         self.stack.add_child (self.help_window)
 
-        python_logo = PythonLogo ()
+        python_logo = PythonLogo (background = '#FFFFFF')
         self.help_window.set_child (python_logo)
 
         self.emoji_dialog = ui.EmojiDialog ()
