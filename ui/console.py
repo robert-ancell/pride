@@ -129,19 +129,21 @@ class Console (Widget):
                             open ('debug.log', 'a').write ('Unknown ED mode={}\n'.format (params))
                     elif code == 'K': # EL - erase line
                         mode = params
-                        if mode == '' or mode == '0':
-                            self.buffer.delete (self.cursor[1], self.cursor[0], 9999) # FIXME: End of line...
-                        elif mode == '1':
-                            self.buffer.delete (0, self.cursor[0], self.cursor[1])
-                        elif mode == '2':
-                            self.buffer.delete (0, self.cursor[0], 9999) # FIXME: End of line...
+                        if mode == '' or mode == '0': # Delete cursor to end of line
+                            self.buffer.overwrite (self.cursor[1], self.cursor[0], ' ' * (80 - self.cursor[1])) # FIXME: end of line...
+                        elif mode == '1': # Delete from cursor to beginning of line
+                            self.buffer.overwrite (0, self.cursor[0], ' ' * self.cursor[1])
+                        elif mode == '2': # Clear entire line
+                            self.buffer.overwrite (0, self.cursor[0], ' ' * 80) # FIXME: end of line...
                         else:
                             open ('debug.log', 'a').write ('Unknown EL mode={}\n'.format (params))
                     elif code == 'P': # DCH - delete characters
                         count = 1
                         if params != '':
                             count = int (params)
-                        self.buffer.delete (self.cursor[1], self.cursor[0], count)
+                        for i in range (count):
+                            self.buffer.delete_right (self.cursor[1], self.cursor[0])
+                    #elif code == 'X': # ECH - erase characters
                     else:
                         open ('debug.log', 'a').write ('Unknown CSI code={} params={}\n'.format (code, params))
                 else:

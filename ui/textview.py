@@ -8,6 +8,7 @@
 
 from .keyinputevent import Key
 from .widget import Widget
+from .textbuffer import get_line_width
 
 class TextView (Widget):
     def __init__ (self, buffer):
@@ -20,20 +21,22 @@ class TextView (Widget):
     def get_size (self):
         return (1, 1)
 
-    def get_current_line_length (self):
-        return self.buffer.get_line_length (self.cursor[0])
+    def get_current_line_width (self):
+        if len (self.buffer.lines) == 0:
+            return 0
+        return get_line_width (self.buffer.lines[self.cursor[0]])
 
     def anchor_cursor (self):
-        self.cursor = (self.cursor[0], min (self.cursor[1], self.get_current_line_length ()))
+        self.cursor = (self.cursor[0], min (self.cursor[1], self.get_current_line_width ()))
 
     def insert (self, text):
         self.anchor_cursor ();
-        self.buffer.insert (self.cursor[1], self.cursor[0], text)
-        self.cursor = (self.cursor[0], self.cursor[1] + len (text))
+        step = self.buffer.insert (self.cursor[1], self.cursor[0], text)
+        self.cursor = (self.cursor[0], self.cursor[1] + step)
 
     def newline (self):
         self.anchor_cursor ();
-        self.buffer.insert_newline (self.cursor[1], self.cursor[0])
+        self.buffer.split_line (self.cursor[1], self.cursor[0])
         self.cursor = (self.cursor[0] + 1, 0)
 
     def backspace (self):
@@ -43,28 +46,29 @@ class TextView (Widget):
                 self.cursor = (self.cursor[0] - 1, len (self.buffer.lines[self.cursor[0] - 1]))
                 self.buffer.merge_lines (self.cursor[0])
         else:
-            self.buffer.delete (self.cursor[1] - 1, self.cursor[0], 1)
-            self.cursor = (self.cursor[0], self.cursor[1] - 1)
+            step = self.buffer.delete_left (self.cursor[1], self.cursor[0])
+            self.cursor = (self.cursor[0], self.cursor[1] + step)
 
     def delete (self):
         self.anchor_cursor ();
-        if self.cursor[1] == self.get_current_line_length ():
+        if self.cursor[1] == self.get_current_line_width ():
             self.buffer.merge_lines (self.cursor[0])
         else:
-            self.buffer.delete (self.cursor[1], self.cursor[0], 1)
+            step = self.buffer.delete_right (self.cursor[1], self.cursor[0])
+            self.cursor = (self.cursor[0], self.cursor[1] + step)
 
     def left (self):
         self.anchor_cursor ();
         if self.cursor[1] == 0 and self.cursor[0] > 0:
-            self.cursor = (self.cursor[0] - 1, self.buffer.get_line_length (self.cursor[0] - 1))
+            self.cursor = (self.cursor[0] - 1, get_line_width (self.buffer.lines[self.cursor[0] - 1]))
         else:
-            self.cursor = (self.cursor[0], max (self.cursor[1] - 1, 0))
+            self.cursor = (self.cursor[0], self.buffer.position_left (self.cursor[1], self.cursor[0]))
 
     def right (self):
-        if self.cursor[1] == self.get_current_line_length () and self.cursor[0] < len (self.buffer.lines) - 1:
+        if self.cursor[1] == self.get_current_line_width () and self.cursor[0] < len (self.buffer.lines) - 1:
             self.cursor = (self.cursor[0] + 1, 0)
         else:
-            self.cursor = (self.cursor[0], min (self.cursor[1] + 1, self.get_current_line_length ()))
+            self.cursor = (self.cursor[0], self.buffer.position_right (self.cursor[1], self.cursor[0]))
 
     def up (self):
         self.cursor = (max (self.cursor[0] - 1, 0), self.cursor[1])
@@ -76,7 +80,7 @@ class TextView (Widget):
         self.cursor = (self.cursor[0], 0)
 
     def end (self):
-        self.cursor = (self.cursor[0], self.get_current_line_length ())
+        self.cursor = (self.cursor[0], self.get_current_line_width ())
 
     def next_page (self):
         self.cursor = (len (self.buffer.lines) - 1, self.cursor[1])
@@ -101,7 +105,7 @@ class TextView (Widget):
             frame.render_text (line_number_column_width - len (line_number) - 1, y - self.start_line, line_number, "#00FFFF")
             frame.render_text (line_number_column_width, y - self.start_line, self.buffer.lines[y])
 
-        frame.cursor = (self.cursor[0] - self.start_line, min (self.cursor[1], self.get_current_line_length ()) + self.get_line_number_column_width ())
+        frame.cursor = (self.cursor[0] - self.start_line, min (self.cursor[1], self.get_current_line_width ()) + self.get_line_number_column_width ())
 
     def handle_character_event (self, event):
         self.insert (chr (event.character))
