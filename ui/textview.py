@@ -122,7 +122,7 @@ class TextView (Widget):
     def handle_key_event (self, event):
         if event.key == Key.BACKSPACE:
             self.backspace ()
-        elif event.key == Key.DELETE:
+        elif event.key == Key.DELETE or event.key == Key.CTRL_D:
             self.delete ()
         elif event.key == Key.LEFT:
             self.left ()
