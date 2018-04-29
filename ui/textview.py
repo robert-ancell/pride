@@ -132,9 +132,9 @@ class TextView (Widget):
             self.up ()
         elif event.key == Key.DOWN:
             self.down ()
-        elif event.key == Key.HOME:
+        elif event.key == Key.HOME or event.key == Key.CTRL_A:
             self.home ()
-        elif event.key == Key.END:
+        elif event.key == Key.END or event.key == Key.CTRL_E:
             self.end ()
         elif event.key == Key.PAGE_DOWN:
             self.next_page ()
