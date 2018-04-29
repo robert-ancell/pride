@@ -117,7 +117,12 @@ class Pride:
 
         self.emoji_dialog = ui.EmojiDialog ()
         self.emoji_dialog.visible = False
+        self.emoji_dialog.select_character = self.select_emoji
         self.stack.add_child (self.emoji_dialog)
+
+    def select_emoji (self, character):
+        self.editor.insert (character)
+        self.emoji_dialog.visible = False
 
     def run (self):
         try:

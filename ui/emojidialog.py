@@ -16,6 +16,7 @@ class EmojiDialog (Widget):
     def __init__ (self):
         Widget.__init__ (self)
         self.selected = (0, 0)
+        self.selected_character = ''
         self.filter = ''
         self.placeholder_text = 'Search' # FIXME: Make translatable
 
@@ -45,6 +46,9 @@ class EmojiDialog (Widget):
 
                         self.characters.append (Character (cp, names))
         self.set_scale (0.5, 0.5)
+
+    def select_character (self, character):
+        pass
 
     def get_size (self):
         return (5, 4)
@@ -79,9 +83,8 @@ class EmojiDialog (Widget):
         return exact_matches + prefix_matches + matches
 
     def handle_key_event (self, event):
-        open ('debug.log', 'a').write ('emoji key {}\n'.format (event.key))
         if event.key == Key.ENTER:
-            self.visible = False
+            self.select_character (self.selected_character)
         elif event.key == Key.BACKSPACE:
             self.filter = self.filter[:-1]
             self.selected = (0, 0)
@@ -100,6 +103,7 @@ class EmojiDialog (Widget):
 
     def render (self, frame):
         matched_characters = self.get_characters (self.filter)
+        self.selected_character = ''
 
         self.n_rows = (frame.height - 1) // 2
         self.n_cols = (frame.width - 1) // 3
@@ -136,6 +140,8 @@ class EmojiDialog (Widget):
             for c in range (self.n_cols):
                 if character_index < len (matched_characters):
                     ch = matched_characters[character_index]
+                    if self.selected == (r, c):
+                        self.selected_character = ch
                 else:
                     ch = ' '
                 character_index += 1
