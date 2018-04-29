@@ -136,5 +136,23 @@ class Display (Widget):
                 self.handle_event (KeyInputEvent (Key.DELETE))
             elif key == curses.KEY_IC:
                 self.handle_event (KeyInputEvent (Key.INSERT))
+            elif key == 1:
+                self.handle_event (KeyInputEvent (Key.CTRL_A))
+            elif key == 2:
+                self.handle_event (KeyInputEvent (Key.CTRL_B))
+            elif key == 3:
+                self.handle_event (KeyInputEvent (Key.CTRL_C))
+            elif key == 4:
+                self.handle_event (KeyInputEvent (Key.CTRL_D))
+            elif key == 5:
+                self.handle_event (KeyInputEvent (Key.CTRL_E))
+            elif key == 6:
+                self.handle_event (KeyInputEvent (Key.CTRL_F))
+            elif key == 353:
+                self.handle_event (KeyInputEvent (Key.SHIFT_TAB))
+            elif key == 530:
+                self.handle_event (KeyInputEvent (Key.CTRL_END))
+            elif key == 535:
+                self.handle_event (KeyInputEvent (Key.CTRL_HOME))
             else:
                 open ('debug.log', 'a').write ('Unknown input {}\n'.format (repr (key)))

@@ -88,6 +88,15 @@ class TextView (Widget):
     def prev_page (self):
         self.cursor = (0, self.cursor[1])
 
+    def document_start (self):
+        self.cursor = (0, 0)
+
+    def document_end (self):
+        if len (self.buffer.lines) == 0:
+            self.cursor = (0, 0)
+        else:
+            self.cursor = (len (self.buffer.lines) - 1, get_line_width (self.buffer.lines[-1]))
+
     def get_line_number_column_width (self):
         return len ('%d' % len (self.buffer.lines)) + 1
 
@@ -135,5 +144,9 @@ class TextView (Widget):
             self.insert ('    ')
         elif event.key == Key.ENTER:
             self.newline ()
+        elif event.key == Key.CTRL_HOME:
+            self.document_start ()
+        elif event.key == Key.CTRL_END:
+            self.document_end ()
         else:
             open ('debug.log', 'a').write ('Unhandled editor key {}\n'.format (event.key))

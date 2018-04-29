@@ -31,6 +31,15 @@ class Key:
     F7        = 'F7'
     F8        = 'F8'
     F9        = 'F9'
+    SHIFT_TAB = 'shift-tab'
+    CTRL_A    = 'ctrl-a'
+    CTRL_B    = 'ctrl-b'
+    CTRL_C    = 'ctrl-c'
+    CTRL_D    = 'ctrl-d'
+    CTRL_E    = 'ctrl-e'
+    CTRL_F    = 'ctrl-f'
+    CTRL_HOME = 'ctrl-home'
+    CTRL_END  = 'ctrl-end'
 
 class KeyInputEvent (InputEvent):
     def __init__ (self, key):
