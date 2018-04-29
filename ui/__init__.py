@@ -1,4 +1,3 @@
-from .alignment import Alignment
 from .bar import Bar
 from .box import Box
 from .console import Console
