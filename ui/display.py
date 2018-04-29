@@ -136,6 +136,8 @@ class Display (Widget):
                 self.handle_event (KeyInputEvent (Key.DELETE))
             elif key == curses.KEY_IC:
                 self.handle_event (KeyInputEvent (Key.INSERT))
+            elif key == 0:
+                self.handle_event (KeyInputEvent (Key.CTRL_SPACE))
             elif key == 1:
                 self.handle_event (KeyInputEvent (Key.CTRL_A))
             elif key == 2:
@@ -148,6 +150,14 @@ class Display (Widget):
                 self.handle_event (KeyInputEvent (Key.CTRL_E))
             elif key == 6:
                 self.handle_event (KeyInputEvent (Key.CTRL_F))
+            elif key == 337:
+                self.handle_event (KeyInputEvent (Key.SHIFT_UP))
+            elif key == 336:
+                self.handle_event (KeyInputEvent (Key.SHIFT_DOWN))
+            elif key == 393:
+                self.handle_event (KeyInputEvent (Key.SHIFT_LEFT))
+            elif key == 402:
+                self.handle_event (KeyInputEvent (Key.SHIFT_RIGHT))
             elif key == 353:
                 self.handle_event (KeyInputEvent (Key.SHIFT_TAB))
             elif key == 530:
