@@ -55,10 +55,16 @@ class TextView (Widget):
 
     def left (self):
         self.anchor_cursor ();
-        self.cursor = (self.cursor[0], max (self.cursor[1] - 1, 0))
+        if self.cursor[1] == 0 and self.cursor[0] > 0:
+            self.cursor = (self.cursor[0] - 1, self.buffer.get_line_length (self.cursor[0] - 1))
+        else:
+            self.cursor = (self.cursor[0], max (self.cursor[1] - 1, 0))
 
     def right (self):
-        self.cursor = (self.cursor[0], min (self.cursor[1] + 1, self.get_current_line_length ()))
+        if self.cursor[1] == self.get_current_line_length () and self.cursor[0] < len (self.buffer.lines) - 1:
+            self.cursor = (self.cursor[0] + 1, 0)
+        else:
+            self.cursor = (self.cursor[0], min (self.cursor[1] + 1, self.get_current_line_length ()))
 
     def up (self):
         self.cursor = (max (self.cursor[0] - 1, 0), self.cursor[1])
