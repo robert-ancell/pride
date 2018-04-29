@@ -133,10 +133,10 @@ class TextBuffer:
         # If inside double width delete that character
         if x < len (exploded) and exploded[x] == '\0':
             exploded = exploded[:x - 1] + exploded[x + 1:]
-            step = -1
+            step = -2
         else:
             exploded = exploded[:x] + exploded[x + 1:]
-            step = 0
+            step = -1
         self.lines[y] = _implode_line (exploded)
         return step
 

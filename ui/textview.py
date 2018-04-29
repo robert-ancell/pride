@@ -57,6 +57,18 @@ class TextView (Widget):
             step = self.buffer.delete_right (self.cursor[1], self.cursor[0])
             self.cursor = (self.cursor[0], self.cursor[1] + step)
 
+    def indent (self):
+        step = self.buffer.insert (0, self.cursor[0], '    ')
+        self.cursor = (self.cursor[0], self.cursor[1] + step)
+
+    def unindent (self):
+        if not self.buffer.lines[self.cursor[0]].startswith ('    '):
+            # FIXME: Notify user of error
+            return
+        for i in range (4):
+            step = self.buffer.delete_right (0, self.cursor[0])
+            self.cursor = (self.cursor[0], self.cursor[1] + step)
+
     def left (self):
         self.anchor_cursor ();
         if self.cursor[1] == 0 and self.cursor[0] > 0:
@@ -141,7 +153,9 @@ class TextView (Widget):
         elif event.key == Key.PAGE_UP:
             self.prev_page ()
         elif event.key == Key.TAB:
-            self.insert ('    ')
+            self.indent ()
+        elif event.key == Key.SHIFT_TAB:
+            self.unindent ()
         elif event.key == Key.ENTER:
             self.newline ()
         elif event.key == Key.CTRL_HOME:
