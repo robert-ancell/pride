@@ -16,7 +16,7 @@ import ui
 import unicodedata
 
 class PythonLogo (ui.Widget):
-    def __init__ (self, background = '#000000'):
+    def __init__ (self, background = '#FFFFFF'):
         ui.Widget.__init__ (self)
         self.background = background
 
@@ -116,7 +116,7 @@ class Pride:
         self.help_window.visible = False
         self.stack.add_child (self.help_window)
 
-        python_logo = PythonLogo (background = '#FFFFFF')
+        python_logo = PythonLogo ()
         self.help_window.set_child (python_logo)
 
         self.emoji_dialog = ui.EmojiDialog ()
