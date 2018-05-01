@@ -21,5 +21,5 @@ setup (name = 'pride-ide',
        python_requires = '>=3',
        packages = [ 'pride', 'pride.ui' ],
        entry_points = {
-           'console_scripts': [ 'pride=pride:main' ],
+           'console_scripts': [ 'pride=pride.__main__:run' ],
        })
