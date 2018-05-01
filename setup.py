@@ -1,0 +1,25 @@
+from setuptools import setup
+
+setup (name = 'pride-ide',
+       version = '0',
+       description = 'A command-line Python IDE suitable for use over SSH',
+       long_description = open ('README.md').read (),
+       url = 'https://github.com/robert-ancell/pride',
+       author = 'Robert Ancell',
+       author_email = 'robert.ancell@gmail.com',
+       license = 'GPL-3+',
+       classifiers = [ 'Development Status :: 3 - Alpha',
+                       'Environment :: Console :: Curses',
+                       'Intended Audience :: Developers',
+                       'Intended Audience :: Education',
+                       'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+                       'Programming Language :: Python :: 3',
+                       'Topic :: Education',
+                       'Topic :: Software Development',
+                       'Topic :: Text Editors :: Integrated Development Environments (IDE)' ],
+       keywords = 'editor ide python python3 REPL',
+       python_requires = '>=3',
+       packages = [ 'pride', 'pride.ui' ],
+       entry_points = {
+           'console_scripts': [ 'pride=pride:main' ],
+       })

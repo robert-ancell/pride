@@ -1,19 +1,18 @@
-#!/usr/bin/python3
+"""Copyright (C) 2018 Robert Ancell
 
-# Copyright (C) 2018 Robert Ancell
-#
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation, either version 3 of the License, or (at your option) any later
-# version. See http://www.gnu.org/copyleft/gpl.html the full text of the
-# license.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See http://www.gnu.org/copyleft/gpl.html the full text of the
+license."""
 
 # ＰｒＩＤＥ
 
 import curses
 import selectors
-import ui
 import unicodedata
+
+from . import ui
 
 class PythonLogo (ui.Widget):
     def __init__ (self, background = '#FFFFFF'):
@@ -157,10 +156,10 @@ class Pride:
         self.console_bar.visible = not self.fullscreen or focus_child is self.console
         self.console.visible = not self.fullscreen or focus_child is self.console
 
-def main (screen):
-    curses.start_color ()
-    curses.use_default_colors ()
-    pride = Pride (screen)
-    pride.run ()
-
-curses.wrapper (main)
+def main ():
+    def wrapper (screen):
+        curses.start_color ()
+        curses.use_default_colors ()
+        pride = Pride (screen)
+        pride.run ()
+    curses.wrapper (wrapper)
