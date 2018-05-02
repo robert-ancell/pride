@@ -10,7 +10,7 @@ import unicodedata
 
 class Pixel:
     def __init__ (self):
-        self.set_value (ord (' '))
+        self.set_value (' ')
 
     def set_value (self, character, foreground = '#FFFFFF', background = '#000000'):
         self.character = character
@@ -21,6 +21,9 @@ class Pixel:
         self.character = pixel.character
         self.foreground = pixel.foreground
         self.background = pixel.background
+
+    def is_wide (self):
+        return unicodedata.east_asian_width (self.character[0]) in ('W', 'F')
 
 class Frame:
     def __init__ (self, width, height):
@@ -35,7 +38,7 @@ class Frame:
         self.cursor = (0, 0)
 
     def clear (self, color = '#000000'):
-        self.fill (0, 0, self.width, self.height, ord (' '), background = color)
+        self.fill (0, 0, self.width, self.height, ' ', background = color)
 
     def fill (self, x, y, width, height, character, foreground = '#FFFFFF', background = '#000000'):
         height = min (height, self.height)
@@ -62,8 +65,11 @@ class Frame:
         for c in text:
             if x_ >= self.width:
                 break
-            line[x_].set_value (ord (c), foreground, background)
-            if unicodedata.east_asian_width (c) in ('W', 'F'):
+            line[x_].set_value (c, foreground, background)
+            if ord (c) >= 0xFE00 and ord (c) <= 0xFE0F: # Variation selectors
+                if x_ > x:
+                    line[x_ - 1].character += c
+            elif unicodedata.east_asian_width (c) in ('W', 'F'):
                 x_ += 2
             else:
                 x_ += 1
@@ -80,4 +86,4 @@ class Frame:
                     (foreground, background) = color_map.get (color_code, ('#FFFFFF', '#000000'))
                 if x + j >= self.width:
                     break
-                line[x + j].set_value (ord (c), foreground, background)
+                line[x + j].set_value (c, foreground, background)

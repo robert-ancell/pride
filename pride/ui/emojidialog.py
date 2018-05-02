@@ -141,11 +141,11 @@ class EmojiDialog (Widget):
                 if character_index < len (matched_characters):
                     ch = matched_characters[character_index]
                     if self.selected == (r, c):
-                        self.selected_character = ch
+                        self.selected_character = ch + '\uFE0F' # Variation selector 16 - Emoji form
                 else:
                     ch = ' '
                 character_index += 1
-                text += ch
+                text += ch + '\uFE0F' # Variation selector 16 - Emoji form
                 if unicodedata.east_asian_width (ch) not in ('W', 'F'): # Defined in http://www.unicode.org/reports/tr11/#
                     text += ' '
                 if self.selected == (r, c) or self.selected == (r, c + 1):

@@ -9,7 +9,6 @@
 import curses
 import selectors
 import sys
-import unicodedata
 
 from .frame import Frame
 from .container import Container
@@ -76,9 +75,8 @@ class Display (Container):
                 # FIXME: Can't place in bottom right for some reason
                 if y == frame.height - 1 and x == frame.width - 1:
                     break
-                c = chr (pixel.character)
-                self.screen.addstr (y, x, c, curses.color_pair (get_color_pair (pixel.foreground, pixel.background)))
-                if unicodedata.east_asian_width (c) in ('W', 'F'):
+                self.screen.addstr (y, x, pixel.character, curses.color_pair (get_color_pair (pixel.foreground, pixel.background)))
+                if pixel.is_wide ():
                     x += 2
                 else:
                     x += 1

@@ -8,32 +8,62 @@
 
 import unicodedata
 
+def get_variation_selector (c):
+    if ord (c) >= 0xFE00 and ord (c) <= 0xFE0F:
+        return ord (c) - 0xFE00 + 1
+    else:
+        return 0
+
 def get_char_width (c):
-    if unicodedata.east_asian_width (c) in ('W', 'F'):
+    if len (c) == 2 and get_variation_selector (c[1]) == 16: # Emoji
+        return 2
+    elif unicodedata.east_asian_width (c) in ('W', 'F'):
         return 2
     else:
         return 1
 
+class unicode_iterator:
+    def __init__ (self, string):
+        self.string = string
+        self.index = 0
+
+    def __iter__ (self):
+        return self
+
+    def __next__ (self):
+        if self.index >= len (self.string):
+            raise StopIteration
+
+        c = self.string[self.index]
+
+        # Keep variation selectors
+        if self.index + 1 < len (self.string) and get_variation_selector (self.string[self.index + 1]) != 0:
+            c += self.string[self.index + 1]
+            self.index += 1
+
+        self.index += 1
+        return c
+
 def get_line_width (line):
     length = 0
-    for c in line:
+    for c in unicode_iterator (line):
         length += get_char_width (c)
     return length
 
 def _explode_line (line, width = 0):
-    exploded = ''
-    for c in line:
-        exploded += c
+    exploded = []
+    for c in unicode_iterator (line):
+        exploded.append (c)
         if get_char_width (c) == 2:
-            exploded += '\0'
+            exploded.append (None)
     while len (exploded) < width:
-        exploded += ' '
+        exploded.append (' ')
     return exploded
 
 def _implode_line (line):
     imploded = ''
     for c in line:
-        if c != '\0':
+        if c != None:
             imploded += c
     return imploded
 
@@ -54,7 +84,7 @@ class TextBuffer:
             return 0
         last_position = 0
         p = 0
-        for c in self.lines[y]:
+        for c in unicode_iterator (self.lines[y]):
             p += get_char_width (c)
             if p >= x:
                 break
@@ -66,7 +96,7 @@ class TextBuffer:
             return x
         last_position = 0
         p = 0
-        for c in self.lines[y]:
+        for c in unicode_iterator (self.lines[y]):
             p += get_char_width (c)
             if last_position >= x:
                 break
@@ -78,14 +108,14 @@ class TextBuffer:
         exploded = _explode_line (self.lines[y], x)
         step = get_line_width (text)
         # If inside a double width, move to next position or replace double with a space
-        if x < len (exploded) and exploded[x] == '\0':
+        if x < len (exploded) and exploded[x] == None:
             if append_double_width:
                 step += 1
-                exploded = exploded[:x + 1] + text + exploded[x:]
+                exploded = exploded[:x + 1] + [text] + exploded[x:]
             else:
-                exploded = exploded[:x - 1] + ' ' + text + exploded[x:]
+                exploded = exploded[:x - 1] + [' ', text] + exploded[x:]
         else:
-            exploded = exploded[:x] + text + exploded[x:]
+            exploded = exploded[:x] + [text] + exploded[x:]
         self.lines[y] = _implode_line (exploded)
         return step
 
@@ -94,7 +124,7 @@ class TextBuffer:
         self._ensure_line (y)
         exploded = _explode_line (self.lines[y], x + len (exploded_text))
         # If start inside double width insert space
-        if x < len (exploded) and exploded[x] == '\0':
+        if x < len (exploded) and exploded[x] == None:
             exploded = exploded[:x - 1] + ' ' + exploded_text + exploded[x + len (exploded_text):]
         else:
             exploded = exploded[:x] + exploded_text + exploded[x + len (exploded_text):]
@@ -118,7 +148,7 @@ class TextBuffer:
         self._ensure_line (y)
         exploded = _explode_line (self.lines[y], x)
         # If inside double width delete that character
-        if exploded[x - 1] == '\0':
+        if exploded[x - 1] == None:
             exploded = exploded[:x - 2] + exploded[x:]
             step = -2
         else:
@@ -131,7 +161,7 @@ class TextBuffer:
         self._ensure_line (y)
         exploded = _explode_line (self.lines[y], x)
         # If inside double width delete that character
-        if x < len (exploded) and exploded[x] == '\0':
+        if x < len (exploded) and exploded[x] == None:
             exploded = exploded[:x - 1] + exploded[x + 1:]
             step = -2
         else:
