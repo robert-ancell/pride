@@ -36,10 +36,12 @@ class unicode_iterator:
 
         c = self.string[self.index]
 
-        # Keep variation selectors
-        if self.index + 1 < len (self.string) and get_variation_selector (self.string[self.index + 1]) != 0:
-            c += self.string[self.index + 1]
-            self.index += 1
+        # Keep variation selectors and combining diacritics
+        if self.index + 1 < len (self.string):
+            c2 = self.string[self.index + 1]
+            if get_variation_selector (c2) != 0 or unicodedata.combining (c2) != 0:
+                c += c2
+                self.index += 1
 
         self.index += 1
         return c
