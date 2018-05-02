@@ -113,11 +113,13 @@ class TextBuffer:
         if x < len (exploded) and exploded[x] == None:
             if append_double_width:
                 step += 1
-                exploded = exploded[:x + 1] + [text] + exploded[x:]
+                exploded.insert (x + 1, text)
             else:
-                exploded = exploded[:x - 1] + [' ', text] + exploded[x:]
+                exploded.pop (x - 1)
+                exploded.insert (x, ' ')
+                exploded.insert (x + 1, text)
         else:
-            exploded = exploded[:x] + [text] + exploded[x:]
+            exploded.insert (x, text)
         self.lines[y] = _implode_line (exploded)
         return step
 
@@ -129,7 +131,7 @@ class TextBuffer:
         if x < len (exploded) and exploded[x] == None:
             exploded = exploded[:x - 1] + ' ' + exploded_text + exploded[x + len (exploded_text):]
         else:
-            exploded = exploded[:x] + exploded_text + exploded[x + len (exploded_text):]
+            exploded = exploded[:x] + exploded_text + exploded[x + get_line_width (exploded_text):]
         self.lines[y] = _implode_line (exploded)
 
     def split_line (self, x, y):
@@ -146,15 +148,15 @@ class TextBuffer:
 
     def delete_left (self, x, y):
         if x == 0:
-            return
+            return 0
         self._ensure_line (y)
         exploded = _explode_line (self.lines[y], x)
-        # If inside double width delete that character
+        # If deleting a double width character then delete two spaces
         if exploded[x - 1] == None:
-            exploded = exploded[:x - 2] + exploded[x:]
+            exploded.pop (x - 2)
             step = -2
         else:
-            exploded = exploded[:x - 1] + exploded[x:]
+            exploded.pop (x - 1)
             step = -1
         self.lines[y] = _implode_line (exploded)
         return step
@@ -164,13 +166,11 @@ class TextBuffer:
         exploded = _explode_line (self.lines[y], x)
         # If inside double width delete that character
         if x < len (exploded) and exploded[x] == None:
-            exploded = exploded[:x - 1] + exploded[x + 1:]
-            step = -2
+            exploded.pop (x - 1)
         else:
-            exploded = exploded[:x] + exploded[x + 1:]
-            step = -1
+            exploded.pop (x)
         self.lines[y] = _implode_line (exploded)
-        return step
+        return 0
 
 if __name__ == '__main__':
     b = TextBuffer ()
