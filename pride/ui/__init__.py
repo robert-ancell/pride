@@ -2,6 +2,7 @@ from .bar import Bar
 from .box import Box
 from .box import BoxStyle
 from .console import Console
+from .container import Container
 from .display import Display
 from .emojidialog import EmojiDialog
 from .frame import Frame

@@ -17,6 +17,7 @@ class Widget:
         self.x_scale = 0.0
         self.y_align = 0.5
         self.y_scale = 0.0
+        self._child_frame = None
 
     def set_align (self, x_align, y_align):
         self.x_align = x_align
@@ -57,8 +58,9 @@ class Widget:
             self.render (frame)
             return
 
-        child_frame = Frame (used_width, used_height)
-        self.render (child_frame)
-        frame.composite (x_offset, y_offset, child_frame)
-        if child_frame.cursor is not None:
-            frame.cursor = (child_frame.cursor[0] + y_offset, child_frame.cursor[1] + x_offset)
+        if self._child_frame is None or (self._child_frame.width, self._child_frame.height) != (used_width, used_height):
+            self._child_frame = Frame (used_width, used_height)
+        self.render (self._child_frame)
+        frame.composite (x_offset, y_offset, self._child_frame)
+        if self._child_frame.cursor is not None:
+            frame.cursor = (self._child_frame.cursor[0] + y_offset, self._child_frame.cursor[1] + x_offset)

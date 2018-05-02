@@ -7,11 +7,11 @@
 # license.
 
 from .frame import Frame
-from .widget import Widget
+from .container import Container
 
-class List (Widget):
+class List (Container):
     def __init__ (self):
-        Widget.__init__ (self)
+        Container.__init__ (self)
         self.focus_child = None
         self.children = []
         self.set_scale (1.0, 1.0)
@@ -49,8 +49,7 @@ class List (Widget):
         for child in visible_children:
             (height, _) = child.get_size ()
             height += int (child.y_scale * (frame.height - min_height) / total_scales) # FIXME: Handle remaining amount fairly - give integer amounts then remaining based on fractional amounts
-            child_frame = Frame (frame.width, height)
-            child.render_aligned (child_frame)
+            child_frame = self.render_child (child, frame.width, height)
             frame.composite (0, line_offset, child_frame)
             if child is self.focus_child:
                 frame.cursor = (line_offset + child_frame.cursor[0], child_frame.cursor[1])

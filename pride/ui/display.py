@@ -12,13 +12,14 @@ import sys
 import unicodedata
 
 from .frame import Frame
-from .widget import Widget
+from .container import Container
 from .keyinputevent import Key
 from .keyinputevent import KeyInputEvent
 from .characterinputevent import CharacterInputEvent
 
-class Display (Widget):
+class Display (Container):
     def __init__ (self, selector, screen):
+        Container.__init__ (self)
         self.selector = selector
         self.screen = screen
         self.child = None
@@ -34,9 +35,10 @@ class Display (Widget):
 
     def refresh (self):
         (max_lines, max_width) = self.screen.getmaxyx ()
-        frame = Frame (max_width, max_lines)
         if self.child is not None:
-            self.child.render_aligned (frame)
+            frame = self.render_child (self.child, max_width, max_lines)
+        else:
+            frame = Frame (max_width, max_lines)
 
         # FIXME: Only if support colors, otherwise fallback to closest match
         colors = {}

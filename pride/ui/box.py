@@ -7,7 +7,7 @@
 # license.
 
 from .frame import Frame
-from .widget import Widget
+from .container import Container
 
 class BoxStyle:
     SQUARE = 'square'
@@ -16,9 +16,9 @@ class BoxStyle:
     DOUBLE = 'double'
     WIDE   = 'wide'
 
-class Box (Widget):
+class Box (Container):
     def __init__ (self, style = BoxStyle.CURVED, foreground = '#FFFFFF', background = '#000000'):
-        Widget.__init__ (self)
+        Container.__init__ (self)
         self.child = None
         self.style = style
         self.foreground = foreground
@@ -42,8 +42,7 @@ class Box (Widget):
 
     def render (self, frame):
         if self.child is not None and self.child.visible:
-            child_frame = Frame (frame.width - 2, frame.height - 2)
-            self.child.render_aligned (child_frame)
+            child_frame = self.render_child (self.child, frame.width - 2, frame.height - 2)
             frame.composite (1, 1, child_frame)
         if self.style == BoxStyle.SQUARE:
             top_left = '┌'
