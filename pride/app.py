@@ -50,8 +50,15 @@ class PythonLogo (ui.Widget):
 class HelpWindow (ui.Box):
     def __init__ (self):
         ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
+
+        grid = ui.Grid ()
+        self.set_child (grid)
+
         python_logo = PythonLogo ()
-        self.set_child (python_logo)
+        grid.add_child (python_logo, 0, 0)
+
+        #label = ui.Label ('Hello world!')
+        #grid.add_child (label, 0, 1)
 
 class Editor (ui.Grid):
     def __init__ (self):

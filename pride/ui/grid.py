@@ -6,8 +6,9 @@
 # version. See http://www.gnu.org/copyleft/gpl.html the full text of the
 # license.
 
-from .frame import Frame
 from .container import Container
+from .frame import Frame
+from .widget import Widget
 
 class Grid (Container):
     def __init__ (self):
@@ -17,9 +18,11 @@ class Grid (Container):
         self.set_scale (1.0, 1.0)
 
     def add_child (self, child, x, y):
+        assert (isinstance (child, Widget))
         self.children[(x, y)] = child
 
     def append_row (self, child):
+        assert (isinstance (child, Widget))
         child_y = 0
         for (_, y) in self.children:
             if y >= child_y:
@@ -27,6 +30,7 @@ class Grid (Container):
         self.add_child (child, 0, child_y)
 
     def append_column (self, child):
+        assert (isinstance (child, Widget))
         child_x = 0
         for (x, _) in self.children:
             if x >= child_x:
@@ -35,6 +39,37 @@ class Grid (Container):
 
     def focus (self, child):
         self.focus_child = child
+
+    def get_size (self):
+        grid_width = 0
+        grid_height = 0
+        for ((x, y), child) in self.children.items ():
+            if not child.visible:
+                continue
+            if x >= grid_width:
+                grid_width = x + 1
+            if y >= grid_height:
+                grid_height = y + 1
+
+        row_heights = [0] * grid_height
+        column_widths = [0] * grid_width
+        for ((x, y), child) in self.children.items ():
+            if not child.visible:
+                continue
+            (w, h) = child.get_size ()
+            if w > column_widths[x]:
+                column_widths[x] = w
+            if h > row_heights[y]:
+                row_heights[y] = h
+
+        width = 0
+        for x in range (grid_width):
+            width += column_widths[x]
+        height = 0
+        for y in range (grid_height):
+            height += row_heights[y]
+
+        return (width, height)
 
     def handle_event (self, event):
         if self.focus_child is None:
@@ -58,20 +93,18 @@ class Grid (Container):
         column_widths = [0] * width
         row_scales = [0.0] * height
         column_scales = [0.0] * width
-        for x in range (width):
-            for y in range (height):
-                child = self.children.get ((x, y))
-                if child is None or not child.visible:
-                    continue
-                (w, h) = child.get_size ()
-                if w > column_widths[x]:
-                    column_widths[x] = w
-                if child.x_scale > column_scales[x]:
-                    column_scales[x] = child.x_scale
-                if h > row_heights[y]:
-                    row_heights[y] = h
-                if child.y_scale > row_scales[y]:
-                    row_scales[y] = child.y_scale
+        for ((x, y), child) in self.children.items ():
+            if not child.visible:
+                continue
+            (w, h) = child.get_size ()
+            if w > column_widths[x]:
+                column_widths[x] = w
+            if child.x_scale > column_scales[x]:
+                column_scales[x] = child.x_scale
+            if h > row_heights[y]:
+                row_heights[y] = h
+            if child.y_scale > row_scales[y]:
+                row_scales[y] = child.y_scale
 
         # Allocate rows
         for y in range (height):
