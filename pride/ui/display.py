@@ -81,10 +81,14 @@ class Display (Container):
                 else:
                     x += 1
 
-        (cursor_y, cursor_x) = frame.cursor
-        cursor_x = min (cursor_x, max_width - 1)
-        cursor_y = min (cursor_y, max_lines - 1)
-        self.screen.move (cursor_y, cursor_x)
+        if frame.cursor is None:
+            curses.curs_set (0)
+        else:
+            curses.curs_set (1)
+            (cursor_y, cursor_x) = frame.cursor
+            cursor_x = min (cursor_x, max_width - 1)
+            cursor_y = min (cursor_y, max_lines - 1)
+            self.screen.move (cursor_y, cursor_x)
         self.screen.refresh ()
 
     def handle_input (self):

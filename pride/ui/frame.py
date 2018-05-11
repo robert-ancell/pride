@@ -35,7 +35,7 @@ class Frame:
             for x in range (width):
                 line.append (Pixel ())
             self.buffer.append (line)
-        self.cursor = (0, 0)
+        self.cursor = None
 
     def clear (self, color = '#000000'):
         self.fill (0, 0, self.width, self.height, ' ', background = color)
