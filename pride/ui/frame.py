@@ -87,3 +87,31 @@ class Frame:
                 if x + j >= self.width:
                     break
                 line[x + j].set_value (c, foreground, background)
+
+    def render_horizontal_bar (self, x, y, width, start_fraction = 8, end_fraction = 8, foreground = '#FFFFFF', background = '#000000'):
+        if y >= self.height:
+            return
+        line = self.buffer[y]
+        for i in range (width):
+            if x + i >= self.width:
+                break
+            if i == 0 and start_fraction > 0 and start_fraction < 8:
+                line [x + i].set_value (chr (0x2588 + start_fraction), background, foreground)
+            elif i == width - 1 and end_fraction > 0 and end_fraction < 8:
+                line [x + i].set_value (chr (0x2588 + (8 - end_fraction)), foreground, background)
+            else:
+                line [x + i].set_value ('█', foreground, background)
+
+    def render_vertical_bar (self, x, y, height, start_fraction = 0, end_fraction = 0, foreground = '#FFFFFF', background = '#000000'):
+        if x >= self.width:
+            return
+        for i in range (height):
+            if y + i >= self.height:
+                break
+            line = self.buffer[y + i]
+            if i == 0 and start_fraction > 0 and start_fraction < 8:
+                line [x].set_value (chr (0x2580 + start_fraction), foreground, background)
+            elif i == height - 1 and end_fraction > 0 and end_fraction < 8:
+                line [x].set_value (chr (0x2580 + (8 - end_fraction)), background, foreground)
+            else:
+                line [x].set_value ('█', foreground, background)

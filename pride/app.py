@@ -47,6 +47,25 @@ class PythonLogo (ui.Widget):
 
         frame.render_image (0, 0, lines, colors, color_codes)
 
+class Editor (ui.Grid):
+    def __init__ (self):
+        ui.Grid.__init__ (self)
+        self.buffer = ui.TextBuffer ()
+        self.view = ui.TextView (self.buffer)
+        self.append_column (self.view)
+        self.scroll = ui.Scroll ()
+        self.append_column (self.scroll)
+        self.focus (self.view)
+
+    def render (self, frame):
+        # FIXME: Do this not every frame but only when the view changes
+        # FIXME: Hide scrollbar when less than one page
+        n_lines = len (self.buffer.lines)
+        start = self.view.start_line / n_lines
+        end = (self.view.start_line + frame.height) / n_lines
+        self.scroll.set_position (start, end)
+        ui.Grid.render (self, frame)
+
 class PrideDisplay (ui.Display):
     def __init__ (self, app, selector, screen):
         ui.Display.__init__ (self, selector, screen)
@@ -100,8 +119,7 @@ class Pride:
         self.editor_tabs.add_child ('code.txt')
         self.main_list.append_row (self.editor_tabs)
 
-        self.buffer = ui.TextBuffer ()
-        self.editor = ui.TextView (self.buffer)
+        self.editor = Editor ()
         self.main_list.append_row (self.editor)
 
         self.console_bar = ui.Bar (unicodedata.lookup ('SNAKE') + ' Python')
@@ -124,13 +142,13 @@ class Pride:
         self.stack.add_child (self.emoji_dialog)
 
     def select_emoji (self, character):
-        self.editor.insert (character)
+        self.editor.view.insert (character)
         self.emoji_dialog.visible = False
 
     def run (self):
         try:
             for line in open ('main.py').read ().split ('\n'):
-                self.buffer.lines.append (line)
+                self.editor.buffer.lines.append (line)
         except:
             pass
         self.console.run (['python3', '-q'])
@@ -145,7 +163,7 @@ class Pride:
 
     def run_program (self):
         f = open ('main.py', 'w')
-        f.write ('\n'.join (self.buffer.lines))
+        f.write ('\n'.join (self.editor.buffer.lines))
         f.close ()
         self.console.run (['python3', 'main.py'])
 
