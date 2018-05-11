@@ -22,7 +22,7 @@ class Scroll (Widget):
         self.end = min (end, 1.0)
 
     def get_size (self):
-        return (0, 1)
+        return (1, 0)
 
     def render (self, frame):
         frame.clear ()

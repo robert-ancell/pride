@@ -51,7 +51,7 @@ class EmojiDialog (Widget):
         pass
 
     def get_size (self):
-        return (5, 4)
+        return (max (4, len (self.placeholder_text)), 5)
 
     def get_characters (self, query):
         exact_matches = []

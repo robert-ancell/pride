@@ -46,7 +46,7 @@ class Widget:
         pass
 
     def render_aligned (self, frame):
-        (height, width) = self.get_size ()
+        (width, height) = self.get_size ()
         width = min (width, frame.width)
         height = min (height, frame.height)
         used_width = width + int ((frame.width - width) * self.x_scale)

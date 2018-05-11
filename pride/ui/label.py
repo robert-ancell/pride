@@ -18,7 +18,7 @@ class Label (Widget):
         lines = self.text.split ('\n')
         for line in lines:
             max_width = max (max_width, len (line))
-        return (len (lines), max_width)
+        return (max_width, len (lines))
 
     def render (self, frame):
         # FIXME: alignment, multi-line

@@ -18,7 +18,7 @@ class Bar (Widget):
         self.title = title
 
     def get_size (self):
-        return (1, len (self.title))
+        return (len (self.title), 1)
 
     def render (self, frame):
         frame.clear ("#0000FF")

@@ -27,7 +27,7 @@ class Console (Widget):
         self.set_scale (1.0, 1.0)
 
     def get_size (self):
-        return (1, 0)
+        return (0, 1)
 
     def handle_selector_event (self, key, mask):
         if key.fd == self.fd:

@@ -63,7 +63,7 @@ class Grid (Container):
                 child = self.children.get ((x, y))
                 if child is None or not child.visible:
                     continue
-                (h, w) = child.get_size ()
+                (w, h) = child.get_size ()
                 if w > column_widths[x]:
                     column_widths[x] = w
                 if child.x_scale > column_scales[x]:

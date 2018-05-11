@@ -26,10 +26,10 @@ class Stack (Widget):
         width = 0
         height = 0
         for child in self.children:
-            (h, w) = child.get_size ()
+            (w, h) = child.get_size ()
             width = max (width, w)
             height = max (height, h)
-        return (height, width)
+        return (width, height)
 
     def handle_event (self, event):
         open ('debug.log', 'a').write ('stack key {}\n'.format (event))

@@ -18,7 +18,7 @@ class Tabs (Widget):
         self.tabs.append (label)
 
     def get_size (self):
-        return (1, 0)
+        return (0, 1)
 
     def render (self, frame):
         frame.clear ("#0000FF")

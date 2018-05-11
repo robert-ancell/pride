@@ -20,7 +20,7 @@ class PythonLogo (ui.Widget):
         self.background = background
 
     def get_size (self):
-        return (6, 23)
+        return (23, 6)
 
     def render (self, frame):
         lines  = [ '▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄',

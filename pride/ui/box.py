@@ -35,10 +35,10 @@ class Box (Container):
 
     def get_size (self):
         if self.child is not None and self.child.visible:
-            (height, width) = self.child.get_size ()
+            (width, height) = self.child.get_size ()
         else:
-            (height, width) = (0, 0)
-        return (height + 2, width + 2)
+            (width, height) = (0, 0)
+        return (width + 2, height + 2)
 
     def render (self, frame):
         if self.child is not None and self.child.visible:
