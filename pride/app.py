@@ -47,6 +47,12 @@ class PythonLogo (ui.Widget):
 
         frame.render_image (0, 0, lines, colors, color_codes)
 
+class HelpWindow (ui.Box):
+    def __init__ (self):
+        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
+        python_logo = PythonLogo ()
+        self.set_child (python_logo)
+
 class Editor (ui.Grid):
     def __init__ (self):
         ui.Grid.__init__ (self)
@@ -129,12 +135,9 @@ class Pride:
 
         self.main_list.focus (self.editor)
 
-        self.help_window = ui.Box (style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
+        self.help_window = HelpWindow ()
         self.help_window.visible = False
         self.stack.add_child (self.help_window)
-
-        python_logo = PythonLogo ()
-        self.help_window.set_child (python_logo)
 
         self.emoji_dialog = ui.EmojiDialog ()
         self.emoji_dialog.visible = False
