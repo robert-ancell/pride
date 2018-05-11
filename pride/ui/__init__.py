@@ -9,8 +9,8 @@ from .frame import Frame
 from .characterinputevent import CharacterInputEvent
 from .keyinputevent import Key
 from .keyinputevent import KeyInputEvent
+from .grid import Grid
 from .label import Label
-from .list import List
 from .stack import Stack
 from .tabs import Tabs
 from .textbuffer import TextBuffer

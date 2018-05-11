@@ -90,7 +90,7 @@ class Pride:
         self.stack = ui.Stack ()
         self.display.set_child (self.stack)
 
-        self.main_list = ui.List ()
+        self.main_list = ui.Grid ()
         self.stack.add_child (self.main_list)
 
         self.editor_tabs = ui.Tabs ()
@@ -98,16 +98,16 @@ class Pride:
         self.editor_tabs.add_child ('main.py')
         self.editor_tabs.add_child ('README.md')
         self.editor_tabs.add_child ('code.txt')
-        self.main_list.add_child (self.editor_tabs)
+        self.main_list.append_row (self.editor_tabs)
 
         self.buffer = ui.TextBuffer ()
         self.editor = ui.TextView (self.buffer)
-        self.main_list.add_child (self.editor)
+        self.main_list.append_row (self.editor)
 
         self.console_bar = ui.Bar (unicodedata.lookup ('SNAKE') + ' Python')
         self.console = ui.Console (self.selector)
-        self.main_list.add_child (self.console_bar)
-        self.main_list.add_child (self.console)
+        self.main_list.append_row (self.console_bar)
+        self.main_list.append_row (self.console)
 
         self.main_list.focus (self.editor)
 
