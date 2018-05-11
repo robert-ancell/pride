@@ -211,4 +211,4 @@ class EmojiDialog (Widget):
             frame.render_text (1, 0, self.filter)
         else:
             frame.render_text (1, 0, self.placeholder_text, foreground = "#808080")
-        frame.cursor = (0, 1 + len (self.filter))
+        frame.cursor = (1 + len (self.filter), 0)

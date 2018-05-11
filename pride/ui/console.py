@@ -47,7 +47,7 @@ class Console (Widget):
         for (i, line) in enumerate (self.buffer.lines):
             if line != '':
                 last_line = i
-        self.cursor = (last_line, 0)
+        self.cursor = (0, last_line)
         if self.pid != 0:
             os.kill (self.pid, signal.SIGTERM)
         (self.pid, self.fd) = pty.fork ()
@@ -116,7 +116,7 @@ class Console (Widget):
                                 line = int (args[0])
                             if len (args) > 1:
                                 col = int (args[1])
-                        self.cursor = (line - 1, col - 1)
+                        self.cursor = (col - 1, line - 1)
                     elif code == 'J': # ED - erase display
                         mode = params
                         if mode == '' or mode == '0': # Erase cursor to end of display
@@ -130,11 +130,11 @@ class Console (Widget):
                     elif code == 'K': # EL - erase line
                         mode = params
                         if mode == '' or mode == '0': # Delete cursor to end of line
-                            self.buffer.overwrite (self.cursor[1], self.cursor[0], ' ' * (80 - self.cursor[1])) # FIXME: end of line...
+                            self.buffer.overwrite (self.cursor[0], self.cursor[1], ' ' * (80 - self.cursor[0])) # FIXME: end of line...
                         elif mode == '1': # Delete from cursor to beginning of line
-                            self.buffer.overwrite (0, self.cursor[0], ' ' * self.cursor[1])
+                            self.buffer.overwrite (0, self.cursor[1], ' ' * self.cursor[0])
                         elif mode == '2': # Clear entire line
-                            self.buffer.overwrite (0, self.cursor[0], ' ' * 80) # FIXME: end of line...
+                            self.buffer.overwrite (0, self.cursor[1], ' ' * 80) # FIXME: end of line...
                         else:
                             open ('debug.log', 'a').write ('Unknown EL mode={}\n'.format (params))
                     elif code == 'P': # DCH - delete characters
@@ -142,7 +142,7 @@ class Console (Widget):
                         if params != '':
                             count = int (params)
                         for i in range (count):
-                            self.buffer.delete_right (self.cursor[1], self.cursor[0])
+                            self.buffer.delete_right (self.cursor[0], self.cursor[1])
                     #elif code == 'X': # ECH - erase characters
                     else:
                         open ('debug.log', 'a').write ('Unknown CSI code={} params={}\n'.format (code, params))
@@ -157,10 +157,10 @@ class Console (Widget):
                 self.left (1)
                 self.read_buffer = self.read_buffer[1:]
             elif c == 0x0A: # LF
-                self.cursor = (self.cursor[0] + 1, 0)
+                self.cursor = (0, self.cursor[1] + 1)
                 self.read_buffer = self.read_buffer[1:]
             elif c == 0x0D: # CR
-                self.cursor = (self.cursor[0], 0)
+                self.cursor = (0, self.cursor[1])
                 self.read_buffer = self.read_buffer[1:]
             elif c >= 0x20 and c <= 0x7E: # UTF-8 one byte / ASCII
                 self.insert (c)
@@ -202,24 +202,24 @@ class Console (Widget):
         return True
 
     def insert (self, c):
-        self.buffer.overwrite (self.cursor[1], self.cursor[0], chr (c))
-        self.cursor = (self.cursor[0], self.cursor[1] + 1)
+        self.buffer.overwrite (self.cursor[0], self.cursor[1], chr (c))
+        self.cursor = (self.cursor[0] + 1, self.cursor[1])
 
     def left (self, count):
-        count = min (count, self.cursor[1])
-        self.cursor = (self.cursor[0], self.cursor[1] - count)
-
-    def right (self, count):
-        #FIXME: count = min (count, width - cursor[1])
-        self.cursor = (self.cursor[0], self.cursor[1] + count)
-
-    def up (self, count):
         count = min (count, self.cursor[0])
         self.cursor = (self.cursor[0] - count, self.cursor[1])
 
-    def down (self, count):
-        #FIXME: count = min (count, height - cursor[0])
+    def right (self, count):
+        #FIXME: count = min (count, width - cursor[0])
         self.cursor = (self.cursor[0] + count, self.cursor[1])
+
+    def up (self, count):
+        count = min (count, self.cursor[1])
+        self.cursor = (self.cursor[0], self.cursor[1] - count)
+
+    def down (self, count):
+        #FIXME: count = min (count, height - cursor[1])
+        self.cursor = (self.cursor[0], self.cursor[1] + count)
 
     def render (self, frame):
         frame.clear ()

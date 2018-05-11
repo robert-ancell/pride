@@ -85,7 +85,7 @@ class Display (Container):
             curses.curs_set (0)
         else:
             curses.curs_set (1)
-            (cursor_y, cursor_x) = frame.cursor
+            (cursor_x, cursor_y) = frame.cursor
             cursor_x = min (cursor_x, max_width - 1)
             cursor_y = min (cursor_y, max_lines - 1)
             self.screen.move (cursor_y, cursor_x)

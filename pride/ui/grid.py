@@ -179,4 +179,4 @@ class Grid (Container):
             child_frame = self.render_child (child, w, h)
             frame.composite (x_offset, y_offset, child_frame)
             if child is self.focus_child:
-                frame.cursor = (y_offset + child_frame.cursor[0], x_offset + child_frame.cursor[1])
+                frame.cursor = (x_offset + child_frame.cursor[0], y_offset + child_frame.cursor[1])

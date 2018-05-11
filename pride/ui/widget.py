@@ -63,4 +63,4 @@ class Widget:
         self.render (self._child_frame)
         frame.composite (x_offset, y_offset, self._child_frame)
         if self._child_frame.cursor is not None:
-            frame.cursor = (self._child_frame.cursor[0] + y_offset, self._child_frame.cursor[1] + x_offset)
+            frame.cursor = (self._child_frame.cursor[0] + x_offset, self._child_frame.cursor[1] + y_offset)

@@ -126,7 +126,7 @@ class TextView (Widget):
             frame.render_text (line_number_column_width - len (line_number) - 1, y - self.start_line, line_number, "#00FFFF")
             frame.render_text (line_number_column_width, y - self.start_line, self.buffer.lines[y])
 
-        frame.cursor = (self.cursor[0] - self.start_line, min (self.cursor[1], self.get_current_line_width ()) + self.get_line_number_column_width ())
+        frame.cursor = (min (self.cursor[1], self.get_current_line_width ()) + self.get_line_number_column_width (), self.cursor[0] - self.start_line)
 
     def handle_character_event (self, event):
         self.insert (chr (event.character))
