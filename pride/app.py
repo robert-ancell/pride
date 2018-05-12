@@ -148,6 +148,9 @@ class Editor (ui.Grid):
         self.tabs.set_selected (i)
         self.file_stack.raise_child (file_view)
 
+    def insert (self, text):
+        self.file_views[self.selected].view.insert (text)
+
     def next_file (self):
         self.selected += 1
         if self.selected >= len (self.file_views):
@@ -264,7 +267,7 @@ class Pride:
         self.editor.select_file (path)
 
     def select_emoji (self, character):
-        self.editor.view.insert (character)
+        self.editor.insert (character)
         self.emoji_dialog.visible = False
 
     def run (self):
