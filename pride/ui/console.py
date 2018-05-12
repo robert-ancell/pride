@@ -222,9 +222,9 @@ class Console (Widget):
         self.cursor = (self.cursor[0], self.cursor[1] + count)
 
     def render (self, frame, theme):
-        frame.clear ()
+        frame.clear (theme.console_background)
         for (y, line) in enumerate (self.buffer.lines):
-            frame.render_text (0, y, line)
+            frame.render_text (0, y, line, theme.text_color)
         frame.cursor = self.cursor
 
     def handle_character_event (self, event):

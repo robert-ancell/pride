@@ -10,17 +10,24 @@ import unicodedata
 
 class Pixel:
     def __init__ (self):
-        self.set_value (' ')
+        self.character = None
+        self.foreground = None
+        self.background = None
 
-    def set_value (self, character, foreground = '#FFFFFF', background = '#000000'):
+    def set_value (self, character, foreground = None, background = None):
         self.character = character
-        self.foreground = foreground
-        self.background = background
+        if foreground is not None:
+            self.foreground = foreground
+        if background is not None:
+            self.background = background
 
     def copy (self, pixel):
-        self.character = pixel.character
-        self.foreground = pixel.foreground
-        self.background = pixel.background
+        if pixel.character is not None:
+            self.character = pixel.character
+        if pixel.foreground is not None:
+            self.foreground = pixel.foreground
+        if pixel.background is not None:
+            self.background = pixel.background
 
     def is_wide (self):
         return unicodedata.east_asian_width (self.character[0]) in ('W', 'F')
@@ -40,7 +47,7 @@ class Frame:
     def clear (self, color = '#000000'):
         self.fill (0, 0, self.width, self.height, ' ', background = color)
 
-    def fill (self, x, y, width, height, character, foreground = '#FFFFFF', background = '#000000'):
+    def fill (self, x, y, width, height, character = ' ', foreground = None, background = None):
         height = min (height, self.height)
         width = min (width, self.width)
         for y_ in range (y, height):
@@ -57,7 +64,7 @@ class Frame:
             for x_ in range (width):
                 target_line[x + x_].copy (source_line[x_])
 
-    def render_text (self, x, y, text, foreground = '#FFFFFF', background = '#000000'):
+    def render_text (self, x, y, text, foreground = None, background = None):
         if y >= self.height:
             return
         line = self.buffer[y]
@@ -68,6 +75,8 @@ class Frame:
             line[x_].set_value (c, foreground, background)
             if ord (c) >= 0xFE00 and ord (c) <= 0xFE0F: # Variation selectors
                 if x_ > x:
+                    if line[x_ - 1].character is None:
+                        line[x_ - 1].character = ' '
                     line[x_ - 1].character += c
             elif unicodedata.east_asian_width (c) in ('W', 'F'):
                 x_ += 2

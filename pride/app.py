@@ -49,13 +49,29 @@ class PythonLogo (ui.Widget):
 
 class HelpDialog (ui.Box):
     def __init__ (self):
-        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE)
+        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, background = '#FFFFFF')
 
         grid = ui.Grid ()
         self.set_child (grid)
 
+        label = ui.Label ('PRIDE - The Python Remote IDE\n', '#000000')
+        grid.append_row (label)
+
+        label = ui.Label ('F1 - Help screen', '#000000')
+        grid.append_row (label)
+        label = ui.Label ('F2 - Load file', '#000000')
+        grid.append_row (label)
+        label = ui.Label ('F3 - Next file', '#000000')
+        grid.append_row (label)
+        label = ui.Label ('F4 - Switch between editor and Python', '#000000')
+        grid.append_row (label)
+        label = ui.Label ('F5 - Run file', '#000000')
+        grid.append_row (label)
+        label = ui.Label ('Insert - Insert Emoji', '#000000')
+        grid.append_row (label)
+
         python_logo = PythonLogo ()
-        grid.add_child (python_logo, 0, 0)
+        grid.append_row (python_logo)
 
 class FileDialog (ui.Box):
     def __init__ (self, callback = None):

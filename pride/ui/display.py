@@ -57,6 +57,10 @@ class Display (Container):
 
         color_pairs = {}
         def get_color_pair (foreground, background):
+            if foreground is None:
+                foreground = '#FFFFFF'
+            if background is None:
+                background = '#000000'
             i = color_pairs.get ((foreground, background))
             if i is None:
                 i = len (color_pairs) + 1
@@ -77,7 +81,11 @@ class Display (Container):
                 # FIXME: Can't place in bottom right for some reason
                 if y == frame.height - 1 and x == frame.width - 1:
                     break
-                self.screen.addstr (y, x, pixel.character, curses.color_pair (get_color_pair (pixel.foreground, pixel.background)))
+                if pixel.character is None:
+                    character = ' '
+                else:
+                    character = pixel.character
+                self.screen.addstr (y, x, character, curses.color_pair (get_color_pair (pixel.foreground, pixel.background)))
                 if pixel.is_wide ():
                     x += 2
                 else:

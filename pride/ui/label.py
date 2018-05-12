@@ -28,8 +28,4 @@ class Label (Widget):
             foreground = theme.text_color
         else:
             foreground = self.foreground
-        if self.background is None:
-            background = theme.text_background
-        else:
-            background = self.background
-        frame.render_text (0, 0, self.text, foreground, background)
+        frame.render_text (0, 0, self.text, foreground, self.background)

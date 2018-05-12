@@ -41,6 +41,15 @@ class Box (Container):
         return (width + 2, height + 2)
 
     def render (self, frame, theme):
+        if self.foreground is None:
+            foreground = theme.box_border
+        else:
+            foreground = self.foreground
+        if self.background is None:
+            background = theme.box_background
+        else:
+            background = self.background
+        frame.clear (background)
         if self.child is not None and self.child.visible:
             child_frame = self.render_child (self.child, frame.width - 2, frame.height - 2, theme)
             frame.composite (1, 1, child_frame)
@@ -98,14 +107,6 @@ class Box (Container):
             bottom_horizontal = '?'
             left_vertical = '?'
             right_vertical = '?'
-        if self.foreground is None:
-            foreground = theme.box_border
-        else:
-            foreground = self.foreground
-        if self.background is None:
-            background = theme.box_background
-        else:
-            background = self.background
         frame.render_text (0, 0, top_left, foreground, background)
         frame.render_text (frame.width - 1, 0, top_right, foreground, background)
         frame.render_text (0, frame.height - 1, bottom_left, foreground, background)

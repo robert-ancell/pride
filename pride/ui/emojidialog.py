@@ -107,6 +107,8 @@ class EmojiDialog (Widget):
         self.n_rows = (frame.height - 1) // 2
         self.n_cols = (frame.width - 1) // 3
 
+        frame.fill (0, 0, self.n_cols * 3 + 1, self.n_rows * 2 + 2, background = theme.text_background)
+
         line = 1
         if self.selected == (0, 0):
             text = '┏'
@@ -128,7 +130,7 @@ class EmojiDialog (Widget):
             text += '┓'
         else:
             text += '╮'
-        frame.render_text (0, line, text)
+        frame.render_text (0, line, text, theme.border_color)
         line += 1
         character_index = 0
         for r in range (self.n_rows):
@@ -151,7 +153,7 @@ class EmojiDialog (Widget):
                     text += '┃'
                 else:
                     text += '│'
-            frame.render_text (0, line, text)
+            frame.render_text (0, line, text, theme.border_color)
             line += 1
             if r < self.n_rows - 1:
                 if self.selected == (r, 0):
@@ -203,11 +205,11 @@ class EmojiDialog (Widget):
                     text += '┛'
                 else:
                     text += '╯'
-            frame.render_text (0, line, text)
+            frame.render_text (0, line, text, theme.border_color)
             line += 1
 
         if self.filter != '':
-            frame.render_text (1, 0, self.filter)
+            frame.render_text (1, 0, self.filter, theme.text_color)
         else:
-            frame.render_text (1, 0, self.placeholder_text, foreground = theme.dim_text_color)
+            frame.render_text (1, 0, self.placeholder_text, theme.dim_text_color)
         frame.cursor = (1 + len (self.filter), 0)
