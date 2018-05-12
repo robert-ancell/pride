@@ -19,6 +19,7 @@ class TreeView (Widget):
             self.model = model
         self.set_scale (1.0, 1.0)
         self.selected = 0
+        self.start = 0
 
     def get_size (self):
         return (0, 1)
@@ -32,12 +33,20 @@ class TreeView (Widget):
             pass #self.activated ()
 
     def render (self, frame):
+        # Scroll display to show cursor
+        while self.selected - self.start < 0:
+            self.start -= 1
+        while self.selected - self.start >= frame.height:
+            self.start += 1
+
         frame.clear ()
-        for i in range (self.model.get_size ()):
+        y = 0
+        for i in range (self.start, self.model.get_size ()):
             if i == self.selected:
                 background = '#0000FF'
-                frame.cursor = (0, i)
+                frame.cursor = (0, y)
             else:
                 background = '#000000'
             label = self.model.get_label (i).ljust (frame.width)
-            frame.render_text (0, i, label, background = background)
+            frame.render_text (0, y, label, background = background)
+            y += 1
