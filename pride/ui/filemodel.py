@@ -7,6 +7,7 @@
 # license.
 
 import os
+import unicodedata
 
 from .treemodel import TreeModel
 
@@ -19,8 +20,17 @@ class FileModel (TreeModel):
     def get_size (self):
         return len (self.files)
 
+    def _get_icon (self, path):
+        if path.endswith ('.py'):
+            return unicodedata.lookup ('SNAKE')
+        elif path.endswith ('.txt') or path.endswith ('.md') or path.endswith ('.xml') or path in ('README'):
+            return unicodedata.lookup ('PAGE FACING UP')
+        else:
+            return '  '
+
     def get_label (self, index):
-        return (self.files[index], None, None)
+        path = self.files[index]
+        return (self._get_icon (path) + ' ' + path, None, None)
 
     def get_item (self, index):
         return self.files[index]
