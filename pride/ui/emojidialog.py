@@ -107,6 +107,7 @@ class EmojiDialog (Widget):
         self.n_rows = (frame.height - 1) // 2
         self.n_cols = (frame.width - 1) // 3
 
+        frame.clear ()
         frame.fill (0, 0, self.n_cols * 3 + 1, self.n_rows * 2 + 2, background = theme.text_background)
 
         line = 1

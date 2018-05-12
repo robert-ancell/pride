@@ -70,6 +70,8 @@ class Frame:
         for c in text:
             if x_ >= self.width:
                 break
+            if background is None:
+                background = line[x_].background
             line[x_].set_value (c, foreground, background)
             if ord (c) >= 0xFE00 and ord (c) <= 0xFE0F: # Variation selectors
                 if x_ > x and line[x_ - 1].character is not None:
