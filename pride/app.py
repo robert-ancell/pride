@@ -76,6 +76,8 @@ class FileView (ui.Grid):
     def __init__ (self, path):
         ui.Grid.__init__ (self)
 
+        self.path = path
+
         self.buffer = ui.TextBuffer ()
         self.view = ui.TextView (self.buffer)
         self.append_column (self.view)
@@ -133,6 +135,15 @@ class Editor (ui.Grid):
             self.selected = 0
         self.file_stack.raise_child (self.files[self.selected])
         self.tabs.set_selected (self.selected)
+
+    def save_file (self):
+        selected_file = self.files[self.selected]
+        f = open (selected_file.path, 'w')
+        f.write ('\n'.join (selected_file.buffer.lines))
+        f.close ()
+
+    def get_path (self):
+        return self.files[self.selected].path
 
 class PythonConsole (ui.Grid):
     def __init__ (self, selector):
@@ -242,10 +253,8 @@ class Pride:
             self.display.refresh ()
 
     def run_program (self):
-        f = open ('main.py', 'w')
-        f.write ('\n'.join (self.editor.buffer.lines))
-        f.close ()
-        self.python_console.run ('main.py')
+        self.editor.save_file ()
+        self.python_console.run (self.editor.get_path ())
 
     def update_visibility (self):
         focus_child = self.main_list.focus_child
