@@ -86,7 +86,7 @@ class TextView (Widget):
         self.cursor = (max (self.cursor[0] - 1, 0), self.cursor[1])
 
     def down (self):
-        self.cursor = (min (self.cursor[0] + 1, len (self.buffer.lines) - 1), self.cursor[1])
+        self.cursor = (min (self.cursor[0] + 1, max (len (self.buffer.lines) - 1, 0)), self.cursor[1])
 
     def home (self):
         self.cursor = (self.cursor[0], 0)
@@ -107,7 +107,7 @@ class TextView (Widget):
         if len (self.buffer.lines) == 0:
             self.cursor = (0, 0)
         else:
-            self.cursor = (len (self.buffer.lines) - 1, get_line_width (self.buffer.lines[-1]))
+            self.cursor = (max (len (self.buffer.lines) - 1, 0), get_line_width (self.buffer.lines[-1]))
 
     def get_line_number_column_width (self):
         return len ('%d' % len (self.buffer.lines)) + 1

@@ -82,6 +82,8 @@ class TextBuffer:
             self.lines.append ('')
 
     def position_left (self, x, y):
+        if y >= len (self.lines):
+            return x
         if x <= 0:
             return 0
         last_position = 0
@@ -94,6 +96,8 @@ class TextBuffer:
         return last_position
 
     def position_right (self, x, y):
+        if y >= len (self.lines):
+            return x
         if x >= get_line_width (self.lines[y]):
             return x
         last_position = 0

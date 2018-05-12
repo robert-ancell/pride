@@ -116,8 +116,12 @@ class FileView (ui.Grid):
         # FIXME: Do this not every frame but only when the view changes
         # FIXME: Hide scrollbar when less than one page
         n_lines = len (self.buffer.lines)
-        start = self.view.start_line / n_lines
-        end = (self.view.start_line + frame.height) / n_lines
+        if n_lines > 0:
+            start = self.view.start_line / n_lines
+            end = (self.view.start_line + frame.height) / n_lines
+        else:
+            start = 0
+            end = frame.height
         self.scroll.set_position (start, end)
         ui.Grid.render (self, frame, theme)
 
