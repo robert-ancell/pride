@@ -142,12 +142,17 @@ class Pride:
         self.main_list = ui.Grid ()
         self.stack.add_child (self.main_list)
 
+        tab_grid = ui.Grid ()
+        tab_grid.set_scale (1.0, 0.0)
+        self.main_list.append_row (tab_grid)
+
+        tab_grid.append_column (ui.Label (unicodedata.lookup ('PAGE FACING UP') + '  ', background = '#0000FF'))
+
         self.editor_tabs = ui.Tabs ()
-        self.editor_tabs.add_child (unicodedata.lookup ('PAGE FACING UP') + ' ')
         self.editor_tabs.add_child ('main.py')
         self.editor_tabs.add_child ('README.md')
         self.editor_tabs.add_child ('code.txt')
-        self.main_list.append_row (self.editor_tabs)
+        tab_grid.append_column (self.editor_tabs)
 
         self.editor = Editor ()
         self.main_list.append_row (self.editor)

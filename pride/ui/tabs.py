@@ -12,6 +12,7 @@ class Tabs (Widget):
     def __init__ (self):
         Widget.__init__ (self)
         self.tabs = []
+        self.selected = 0
         self.set_scale (1.0, 0.0)
 
     def add_child (self, label):
@@ -23,7 +24,12 @@ class Tabs (Widget):
     def render (self, frame):
         frame.clear ("#0000FF")
         row = 0
-        for label in self.tabs:
-            text = label + '│'
-            frame.render_text (row, 0, text, background = "#0000FF")
-            row += len (text)
+        for (i, label) in enumerate (self.tabs):
+            if i == self.selected:
+                background = '#FF0000'
+            else:
+                background = '#0000FF'
+            frame.render_text (row, 0, label, background = background)
+            row += len (label)
+            frame.render_text (row, 0, '|', background = '#0000FF')
+            row += 1

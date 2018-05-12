@@ -9,9 +9,10 @@
 from .widget import Widget
 
 class Label (Widget):
-    def __init__ (self, text):
+    def __init__ (self, text, background = '#000000'):
         Widget.__init__ (self)
         self.text = text
+        self.background = background
 
     def get_size (self):
         max_width = 0
@@ -22,4 +23,4 @@ class Label (Widget):
 
     def render (self, frame):
         # FIXME: alignment, multi-line
-        frame.render_text (0, 0, self.text)
+        frame.render_text (0, 0, self.text, background = self.background)
