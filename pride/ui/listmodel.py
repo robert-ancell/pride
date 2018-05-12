@@ -22,7 +22,7 @@ class ListModel (TreeModel):
         return len (self.items)
 
     def get_label (self, index):
-        return self.items[index][0]
+        return (self.items[index][0], None, None)
 
     def get_item (self, index):
         return self.items[index][1]

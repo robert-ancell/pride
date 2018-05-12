@@ -20,7 +20,7 @@ class FileModel (TreeModel):
         return len (self.files)
 
     def get_label (self, index):
-        return self.files[index]
+        return (self.files[index], None, None)
 
     def get_item (self, index):
         return self.files[index]

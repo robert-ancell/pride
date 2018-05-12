@@ -14,7 +14,7 @@ class TreeModel:
         return 0
 
     def get_label (self, index):
-        return ''
+        return ('', None, None)
 
     def get_item (self, index):
         return None

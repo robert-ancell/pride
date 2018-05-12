@@ -44,11 +44,14 @@ class TreeView (Widget):
         frame.clear ()
         y = 0
         for i in range (self.start, self.model.get_size ()):
+            (label, foreground, background) = self.model.get_label (i)
+            if foreground is None:
+                foreground = '#FFFFFF'
             if i == self.selected:
                 background = '#0000FF'
                 frame.cursor = (0, y)
-            else:
+            elif background is None:
                 background = '#000000'
-            label = self.model.get_label (i).ljust (frame.width)
-            frame.render_text (0, y, label, background = background)
+            label = label.ljust (frame.width)
+            frame.render_text (0, y, label, foreground = foreground, background = background)
             y += 1
