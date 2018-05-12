@@ -72,6 +72,33 @@ class FileDialog (ui.Box):
         grid.add_child (files, 0, 1)
         grid.focus (files)
 
+class FileView (ui.Grid):
+    def __init__ (self, path):
+        ui.Grid.__init__ (self)
+
+        self.buffer = ui.TextBuffer ()
+        self.view = ui.TextView (self.buffer)
+        self.append_column (self.view)
+        self.scroll = ui.Scroll ()
+        self.append_column (self.scroll)
+
+        self.focus (self.view)
+
+        try:
+            for line in open (path).read ().split ('\n'):
+                self.buffer.lines.append (line)
+        except:
+            pass
+
+    def render (self, frame):
+        # FIXME: Do this not every frame but only when the view changes
+        # FIXME: Hide scrollbar when less than one page
+        n_lines = len (self.buffer.lines)
+        start = self.view.start_line / n_lines
+        end = (self.view.start_line + frame.height) / n_lines
+        self.scroll.set_position (start, end)
+        ui.Grid.render (self, frame)
+
 class Editor (ui.Grid):
     def __init__ (self):
         ui.Grid.__init__ (self)
@@ -82,32 +109,30 @@ class Editor (ui.Grid):
 
         tab_grid.append_column (ui.Label (unicodedata.lookup ('PAGE FACING UP') + '  ', background = '#0000FF'))
 
-        self.editor_tabs = ui.Tabs ()
-        self.editor_tabs.add_child ('main.py')
-        self.editor_tabs.add_child ('README.md')
-        self.editor_tabs.add_child ('code.txt')
-        tab_grid.append_column (self.editor_tabs)
+        self.tabs = ui.Tabs ()
+        tab_grid.append_column (self.tabs)
 
-        text_grid = ui.Grid ()
-        self.append_row (text_grid)
+        self.file_stack = ui.Stack ()
+        self.append_row (self.file_stack)
 
-        self.buffer = ui.TextBuffer ()
-        self.view = ui.TextView (self.buffer)
-        text_grid.append_column (self.view)
-        self.scroll = ui.Scroll ()
-        text_grid.append_column (self.scroll)
+        self.files = []
 
-        text_grid.focus (self.view)
-        self.focus (text_grid)
+        for path in ['main.py', 'README.md']:
+            file_view = FileView (path)
+            self.file_stack.add_child (file_view)
+            self.files.append (file_view)
+            self.tabs.add_child (path)
 
-    def render (self, frame):
-        # FIXME: Do this not every frame but only when the view changes
-        # FIXME: Hide scrollbar when less than one page
-        n_lines = len (self.buffer.lines)
-        start = self.view.start_line / n_lines
-        end = (self.view.start_line + frame.height) / n_lines
-        self.scroll.set_position (start, end)
-        ui.Grid.render (self, frame)
+        self.selected = 0
+        self.file_stack.raise_child (self.files[self.selected])
+        self.focus (self.file_stack)
+
+    def next_file (self):
+        self.selected += 1
+        if self.selected >= len (self.files):
+            self.selected = 0
+        self.file_stack.raise_child (self.files[self.selected])
+        self.tabs.set_selected (self.selected)
 
 class PythonConsole (ui.Grid):
     def __init__ (self, selector):
@@ -141,6 +166,9 @@ class PrideDisplay (ui.Display):
                 self.app.file_dialog.visible = not self.app.file_dialog.visible
                 if self.app.file_dialog.visible:
                     self.app.stack.raise_child (self.app.file_dialog)
+                return
+            elif event.key == ui.Key.F3:
+                self.app.editor.next_file ()
                 return
             elif event.key == ui.Key.F4: # FIXME: Handle in self.app.main_list.handle_event
                 if self.app.main_list.focus_child == self.app.editor:
@@ -203,11 +231,6 @@ class Pride:
         self.emoji_dialog.visible = False
 
     def run (self):
-        try:
-            for line in open ('main.py').read ().split ('\n'):
-                self.editor.buffer.lines.append (line)
-        except:
-            pass
         self.python_console.run ()
         self.display.refresh ()
 

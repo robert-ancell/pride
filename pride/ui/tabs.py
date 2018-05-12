@@ -18,6 +18,9 @@ class Tabs (Widget):
     def add_child (self, label):
         self.tabs.append (label)
 
+    def set_selected (self, index):
+        self.selected = index
+
     def get_size (self):
         return (0, 1)
 
