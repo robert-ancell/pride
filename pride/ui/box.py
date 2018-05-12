@@ -17,7 +17,7 @@ class BoxStyle:
     WIDE   = 'wide'
 
 class Box (Container):
-    def __init__ (self, style = BoxStyle.CURVED, foreground = '#FFFFFF', background = '#000000'):
+    def __init__ (self, style = BoxStyle.CURVED, foreground = None, background = None):
         Container.__init__ (self)
         self.child = None
         self.style = style
@@ -40,9 +40,9 @@ class Box (Container):
             (width, height) = (0, 0)
         return (width + 2, height + 2)
 
-    def render (self, frame):
+    def render (self, frame, theme):
         if self.child is not None and self.child.visible:
-            child_frame = self.render_child (self.child, frame.width - 2, frame.height - 2)
+            child_frame = self.render_child (self.child, frame.width - 2, frame.height - 2, theme)
             frame.composite (1, 1, child_frame)
         if self.style == BoxStyle.SQUARE:
             top_left = '┌'
@@ -98,13 +98,21 @@ class Box (Container):
             bottom_horizontal = '?'
             left_vertical = '?'
             right_vertical = '?'
-        frame.render_text (0, 0, top_left, self.foreground, self.background)
-        frame.render_text (frame.width - 1, 0, top_right, self.foreground, self.background)
-        frame.render_text (0, frame.height - 1, bottom_left, self.foreground, self.background)
-        frame.render_text (frame.width - 1, frame.height - 1, bottom_right, self.foreground, self.background)
+        if self.foreground is None:
+            foreground = theme.box_border
+        else:
+            foreground = self.foreground
+        if self.background is None:
+            background = theme.box_background
+        else:
+            background = self.background
+        frame.render_text (0, 0, top_left, foreground, background)
+        frame.render_text (frame.width - 1, 0, top_right, foreground, background)
+        frame.render_text (0, frame.height - 1, bottom_left, foreground, background)
+        frame.render_text (frame.width - 1, frame.height - 1, bottom_right, foreground, background)
         for x in range (1, frame.width - 1):
-            frame.render_text (x, 0, top_horizontal, self.foreground, self.background)
-            frame.render_text (x, frame.height - 1, bottom_horizontal, self.foreground, self.background)
+            frame.render_text (x, 0, top_horizontal, foreground, background)
+            frame.render_text (x, frame.height - 1, bottom_horizontal, foreground, background)
         for y in range (1, frame.height - 1):
-            frame.render_text (0, y, left_vertical, self.foreground, self.background)
-            frame.render_text (frame.width - 1, y, right_vertical, self.foreground, self.background)
+            frame.render_text (0, y, left_vertical, foreground, background)
+            frame.render_text (frame.width - 1, y, right_vertical, foreground, background)

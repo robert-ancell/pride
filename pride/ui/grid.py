@@ -76,7 +76,7 @@ class Grid (Container):
             return
         self.focus_child.handle_event (event)
 
-    def render (self, frame):
+    def render (self, frame, theme):
         # Work out size of grid
         width = 0
         height = 0
@@ -176,7 +176,7 @@ class Grid (Container):
             for i in range (y):
                 y_offset += row_heights[i]
             h = row_heights[y]
-            child_frame = self.render_child (child, w, h)
+            child_frame = self.render_child (child, w, h, theme)
             frame.composite (x_offset, y_offset, child_frame)
             if child is self.focus_child and child_frame.cursor is not None:
                 frame.cursor = (x_offset + child_frame.cursor[0], y_offset + child_frame.cursor[1])

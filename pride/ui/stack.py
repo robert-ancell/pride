@@ -38,11 +38,11 @@ class Stack (Widget):
                 child.handle_event (event)
                 return
 
-    def render (self, frame):
+    def render (self, frame, theme):
         # FIXME: Work out if widgets would be covered and skip rendering
         # FIXME: Take colour out of covered children
         have_cursor = False
         for child in reversed (self.children):
             if not child.visible:
                 continue
-            child.render_aligned (frame)
+            child.render_aligned (frame, theme)

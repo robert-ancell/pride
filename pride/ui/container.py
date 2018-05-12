@@ -14,10 +14,10 @@ class Container (Widget):
         Widget.__init__ (self)
         self._frames = {}
 
-    def render_child (self, child, width, height):
+    def render_child (self, child, width, height, theme):
         frame = self._frames.get (child)
         if frame is None or (frame.width, frame.height) != (width, height):
             frame = Frame (width, height)
             self._frames[child] = frame
-        child.render_aligned (frame)
+        child.render_aligned (frame, theme)
         return frame

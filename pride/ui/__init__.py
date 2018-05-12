@@ -18,6 +18,7 @@ from .stack import Stack
 from .tabs import Tabs
 from .textbuffer import TextBuffer
 from .textview import TextView
+from .theme import Theme
 from .treemodel import TreeModel
 from .treeview import TreeView
 from .widget import Widget

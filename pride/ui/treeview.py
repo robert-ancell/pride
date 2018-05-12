@@ -34,7 +34,7 @@ class TreeView (Widget):
             if self.callback is not None:
                 self.callback (self.model.get_item (self.selected))
 
-    def render (self, frame):
+    def render (self, frame, theme):
         # Scroll display to show cursor
         while self.selected - self.start < 0:
             self.start -= 1
@@ -46,12 +46,12 @@ class TreeView (Widget):
         for i in range (self.start, self.model.get_size ()):
             (label, foreground, background) = self.model.get_label (i)
             if foreground is None:
-                foreground = '#FFFFFF'
+                foreground = theme.text_color
             if i == self.selected:
-                background = '#0000FF'
+                background = theme.selected_background
                 frame.cursor = (0, y)
             elif background is None:
-                background = '#000000'
+                background = theme.text_background
             label = label.ljust (frame.width)
-            frame.render_text (0, y, label, foreground = foreground, background = background)
+            frame.render_text (0, y, label, foreground, background)
             y += 1

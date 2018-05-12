@@ -15,6 +15,7 @@ from .container import Container
 from .keyinputevent import Key
 from .keyinputevent import KeyInputEvent
 from .characterinputevent import CharacterInputEvent
+from .theme import Theme
 
 class Display (Container):
     def __init__ (self, selector, screen):
@@ -24,6 +25,7 @@ class Display (Container):
         self.child = None
         self.selector.register (sys.stdin, selectors.EVENT_READ)
         self.screen.nodelay (True)
+        self.theme = Theme ()
 
     def set_child (self, child):
         self.child = child
@@ -35,7 +37,7 @@ class Display (Container):
     def refresh (self):
         (max_lines, max_width) = self.screen.getmaxyx ()
         if self.child is not None:
-            frame = self.render_child (self.child, max_width, max_lines)
+            frame = self.render_child (self.child, max_width, max_lines, self.theme)
         else:
             frame = Frame (max_width, max_lines)
 

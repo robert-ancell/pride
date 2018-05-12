@@ -20,6 +20,6 @@ class Bar (Widget):
     def get_size (self):
         return (len (self.title), 1)
 
-    def render (self, frame):
-        frame.clear ("#0000FF")
-        frame.render_text (0, 0, self.title, background = "#0000FF")
+    def render (self, frame, theme):
+        frame.clear (theme.bar_color)
+        frame.render_text (0, 0, self.title, background = theme.bar_color)

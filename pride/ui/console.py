@@ -221,7 +221,7 @@ class Console (Widget):
         #FIXME: count = min (count, height - cursor[1])
         self.cursor = (self.cursor[0], self.cursor[1] + count)
 
-    def render (self, frame):
+    def render (self, frame, theme):
         frame.clear ()
         for (y, line) in enumerate (self.buffer.lines):
             frame.render_text (0, y, line)

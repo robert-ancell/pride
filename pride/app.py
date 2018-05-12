@@ -22,7 +22,7 @@ class PythonLogo (ui.Widget):
     def get_size (self):
         return (23, 6)
 
-    def render (self, frame):
+    def render (self, frame, theme):
         lines  = [ '▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄',
                    '   ▟•█▙       ╷╷       ',
                    ' ▟█▇▇█▛█▙ ╭╮╷╷┼├╮╭╮┌╮™ ',
@@ -49,7 +49,7 @@ class PythonLogo (ui.Widget):
 
 class HelpDialog (ui.Box):
     def __init__ (self):
-        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
+        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE)
 
         grid = ui.Grid ()
         self.set_child (grid)
@@ -59,7 +59,7 @@ class HelpDialog (ui.Box):
 
 class FileDialog (ui.Box):
     def __init__ (self, callback = None):
-        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
+        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE)
         self.callback = callback
 
         grid = ui.Grid ()
@@ -96,14 +96,14 @@ class FileView (ui.Grid):
         except:
             pass
 
-    def render (self, frame):
+    def render (self, frame, theme):
         # FIXME: Do this not every frame but only when the view changes
         # FIXME: Hide scrollbar when less than one page
         n_lines = len (self.buffer.lines)
         start = self.view.start_line / n_lines
         end = (self.view.start_line + frame.height) / n_lines
         self.scroll.set_position (start, end)
-        ui.Grid.render (self, frame)
+        ui.Grid.render (self, frame, theme)
 
 class Editor (ui.Grid):
     def __init__ (self):

@@ -100,7 +100,7 @@ class EmojiDialog (Widget):
         self.filter += chr (event.character)
         self.selected = (0, 0)
 
-    def render (self, frame):
+    def render (self, frame, theme):
         matched_characters = self.get_characters (self.filter)
         self.selected_character = ''
 
@@ -209,5 +209,5 @@ class EmojiDialog (Widget):
         if self.filter != '':
             frame.render_text (1, 0, self.filter)
         else:
-            frame.render_text (1, 0, self.placeholder_text, foreground = "#808080")
+            frame.render_text (1, 0, self.placeholder_text, foreground = theme.dim_text_color)
         frame.cursor = (1 + len (self.filter), 0)

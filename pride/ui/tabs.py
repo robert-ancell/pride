@@ -24,15 +24,15 @@ class Tabs (Widget):
     def get_size (self):
         return (0, 1)
 
-    def render (self, frame):
-        frame.clear ("#0000FF")
+    def render (self, frame, theme):
+        frame.clear (theme.bar_color)
         row = 0
         for (i, label) in enumerate (self.tabs):
             if i == self.selected:
-                background = '#FF0000'
+                background = theme.selected_tab_color
             else:
-                background = '#0000FF'
+                background = theme.bar_color
             frame.render_text (row, 0, label, background = background)
             row += len (label)
-            frame.render_text (row, 0, '|', background = '#0000FF')
+            frame.render_text (row, 0, '|', background = theme.bar_color)
             row += 1

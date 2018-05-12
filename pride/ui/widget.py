@@ -42,10 +42,10 @@ class Widget:
     def handle_key_event (self, event):
         pass
 
-    def render (self, frame):
+    def render (self, frame, theme):
         pass
 
-    def render_aligned (self, frame):
+    def render_aligned (self, frame, theme):
         (width, height) = self.get_size ()
         width = min (width, frame.width)
         height = min (height, frame.height)
@@ -55,12 +55,12 @@ class Widget:
         y_offset = int ((frame.height - used_height) * self.y_align)
 
         if (used_width, used_height) == (frame.width, frame.height):
-            self.render (frame)
+            self.render (frame, theme)
             return
 
         if self._child_frame is None or (self._child_frame.width, self._child_frame.height) != (used_width, used_height):
             self._child_frame = Frame (used_width, used_height)
-        self.render (self._child_frame)
+        self.render (self._child_frame, theme)
         frame.composite (x_offset, y_offset, self._child_frame)
         if self._child_frame.cursor is not None:
             frame.cursor = (self._child_frame.cursor[0] + x_offset, self._child_frame.cursor[1] + y_offset)
