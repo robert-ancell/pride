@@ -47,7 +47,7 @@ class PythonLogo (ui.Widget):
 
         frame.render_image (0, 0, lines, colors, color_codes)
 
-class HelpWindow (ui.Box):
+class HelpDialog (ui.Box):
     def __init__ (self):
         ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
 
@@ -57,8 +57,20 @@ class HelpWindow (ui.Box):
         python_logo = PythonLogo ()
         grid.add_child (python_logo, 0, 0)
 
-        #label = ui.Label ('Hello world!')
-        #grid.add_child (label, 0, 1)
+class FileDialog (ui.Box):
+    def __init__ (self):
+        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
+
+        grid = ui.Grid ()
+        self.set_child (grid)
+
+        label = ui.Label ('Select file to open')
+        grid.add_child (label, 0, 0)
+
+        model = ui.FileModel ()
+        files = ui.TreeView (model)
+        grid.add_child (files, 0, 1)
+        grid.focus (files)
 
 class Editor (ui.Grid):
     def __init__ (self):
@@ -88,9 +100,14 @@ class PrideDisplay (ui.Display):
         open ('debug.log', 'a').write ('EVENT {}\n'.format (event))
         if isinstance (event, ui.KeyInputEvent):
             if event.key == ui.Key.F1:
-                self.app.help_window.visible = not self.app.help_window.visible
-                if self.app.help_window.visible:
-                    self.app.stack.raise_child (self.app.help_window)
+                self.app.help_dialog.visible = not self.app.help_dialog.visible
+                if self.app.help_dialog.visible:
+                    self.app.stack.raise_child (self.app.help_dialog)
+                return
+            elif event.key == ui.Key.F2:
+                self.app.file_dialog.visible = not self.app.file_dialog.visible
+                if self.app.file_dialog.visible:
+                    self.app.stack.raise_child (self.app.file_dialog)
                 return
             elif event.key == ui.Key.F4: # FIXME: Handle in self.app.main_list.handle_event
                 if self.app.main_list.focus_child == self.app.editor:
@@ -142,13 +159,19 @@ class Pride:
 
         self.main_list.focus (self.editor)
 
-        self.help_window = HelpWindow ()
-        self.help_window.visible = False
-        self.stack.add_child (self.help_window)
+        self.help_dialog = HelpDialog ()
+        self.help_dialog.visible = False
+        self.stack.add_child (self.help_dialog)
+
+        self.file_dialog = FileDialog ()
+        self.file_dialog.visible = False
+        self.file_dialog.set_scale (0.5, 0.5)
+        self.stack.add_child (self.file_dialog)
 
         self.emoji_dialog = ui.EmojiDialog ()
         self.emoji_dialog.visible = False
         self.emoji_dialog.select_character = self.select_emoji
+        self.emoji_dialog.set_scale (0.5, 0.5)
         self.stack.add_child (self.emoji_dialog)
 
     def select_emoji (self, character):

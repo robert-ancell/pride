@@ -45,7 +45,6 @@ class EmojiDialog (Widget):
                             names.append (name.strip ().lower ())
 
                         self.characters.append (Character (cp, names))
-        self.set_scale (0.5, 0.5)
 
     def select_character (self, character):
         pass

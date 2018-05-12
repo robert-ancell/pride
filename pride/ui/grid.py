@@ -178,5 +178,5 @@ class Grid (Container):
             h = row_heights[y]
             child_frame = self.render_child (child, w, h)
             frame.composite (x_offset, y_offset, child_frame)
-            if child is self.focus_child:
+            if child is self.focus_child and child_frame.cursor is not None:
                 frame.cursor = (x_offset + child_frame.cursor[0], y_offset + child_frame.cursor[1])
