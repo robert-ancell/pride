@@ -21,10 +21,13 @@ class FileModel (TreeModel):
         return len (self.files)
 
     def _get_icon (self, path):
+        path = path.lower ()
         if path.endswith ('.py'):
             return unicodedata.lookup ('SNAKE')
         elif path.endswith ('.txt') or path.endswith ('.md') or path.endswith ('.xml') or path in ('README'):
             return unicodedata.lookup ('PAGE FACING UP')
+        elif path.endswith ('.png') or path.endswith ('.jpg') or path.endswith ('.jpeg') or path.endswith ('.svg'):
+            return unicodedata.lookup ('FRAME WITH PICTURE') + '\ufe0f'
         else:
             return '  '
 
