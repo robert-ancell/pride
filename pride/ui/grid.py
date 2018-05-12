@@ -77,6 +77,8 @@ class Grid (Container):
         self.focus_child.handle_event (event)
 
     def render (self, frame, theme):
+        frame.clear ()
+
         # Work out size of grid
         width = 0
         height = 0

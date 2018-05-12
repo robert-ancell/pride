@@ -75,18 +75,18 @@ class HelpDialog (ui.Box):
 
 class FileDialog (ui.Box):
     def __init__ (self, callback = None):
-        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE)
+        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, background = '#FFFFFF')
         self.callback = callback
 
         grid = ui.Grid ()
         self.set_child (grid)
 
-        label = ui.Label ('Select file to open')
-        grid.add_child (label, 0, 0)
+        label = ui.Label ('Select file to open', '#000000')
+        grid.append_row (label)
 
         model = ui.FileModel ()
-        files = ui.TreeView (model, self._file_selected)
-        grid.add_child (files, 0, 1)
+        files = ui.TreeView (model, self._file_selected, text_color = '#000000')
+        grid.append_row (files)
         grid.focus (files)
 
     def _file_selected (self, item):

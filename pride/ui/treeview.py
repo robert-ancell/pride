@@ -11,13 +11,14 @@ from .treemodel import TreeModel
 from .widget import Widget
 
 class TreeView (Widget):
-    def __init__ (self, model = None, callback = None):
+    def __init__ (self, model = None, callback = None, text_color = None):
         Widget.__init__ (self)
         if model is None:
             self.model = TreeModel ()
         else:
             self.model = model
         self.callback = callback
+        self.text_color = text_color
         self.set_scale (1.0, 1.0)
         self.selected = 0
         self.start = 0
@@ -41,17 +42,17 @@ class TreeView (Widget):
         while self.selected - self.start >= frame.height:
             self.start += 1
 
-        frame.clear ()
         y = 0
+        frame.clear ()
         for i in range (self.start, self.model.get_size ()):
             (label, foreground, background) = self.model.get_label (i)
+            if foreground is None:
+                foreground = self.text_color
             if foreground is None:
                 foreground = theme.text_color
             if i == self.selected:
                 background = theme.selected_background
                 frame.cursor = (0, y)
-            elif background is None:
-                background = theme.text_background
-            label = label.ljust (frame.width)
+                label = label.ljust (frame.width)
             frame.render_text (0, y, label, foreground, background)
             y += 1

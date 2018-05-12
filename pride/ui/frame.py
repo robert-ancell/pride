@@ -16,10 +16,8 @@ class Pixel:
 
     def set_value (self, character, foreground = None, background = None):
         self.character = character
-        if foreground is not None:
-            self.foreground = foreground
-        if background is not None:
-            self.background = background
+        self.foreground = foreground
+        self.background = background
 
     def copy (self, pixel):
         if pixel.character is not None:
@@ -44,8 +42,8 @@ class Frame:
             self.buffer.append (line)
         self.cursor = None
 
-    def clear (self, color = '#000000'):
-        self.fill (0, 0, self.width, self.height, ' ', background = color)
+    def clear (self, color = None):
+        self.fill (0, 0, self.width, self.height, background = color)
 
     def fill (self, x, y, width, height, character = ' ', foreground = None, background = None):
         height = min (height, self.height)
@@ -74,9 +72,7 @@ class Frame:
                 break
             line[x_].set_value (c, foreground, background)
             if ord (c) >= 0xFE00 and ord (c) <= 0xFE0F: # Variation selectors
-                if x_ > x:
-                    if line[x_ - 1].character is None:
-                        line[x_ - 1].character = ' '
+                if x_ > x and line[x_ - 1].character is not None:
                     line[x_ - 1].character += c
             elif unicodedata.east_asian_width (c) in ('W', 'F'):
                 x_ += 2
