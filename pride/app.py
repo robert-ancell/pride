@@ -75,12 +75,30 @@ class FileDialog (ui.Box):
 class Editor (ui.Grid):
     def __init__ (self):
         ui.Grid.__init__ (self)
+
+        tab_grid = ui.Grid ()
+        tab_grid.set_scale (1.0, 0.0)
+        self.append_row (tab_grid)
+
+        tab_grid.append_column (ui.Label (unicodedata.lookup ('PAGE FACING UP') + '  ', background = '#0000FF'))
+
+        self.editor_tabs = ui.Tabs ()
+        self.editor_tabs.add_child ('main.py')
+        self.editor_tabs.add_child ('README.md')
+        self.editor_tabs.add_child ('code.txt')
+        tab_grid.append_column (self.editor_tabs)
+
+        text_grid = ui.Grid ()
+        self.append_row (text_grid)
+
         self.buffer = ui.TextBuffer ()
         self.view = ui.TextView (self.buffer)
-        self.append_column (self.view)
+        text_grid.append_column (self.view)
         self.scroll = ui.Scroll ()
-        self.append_column (self.scroll)
-        self.focus (self.view)
+        text_grid.append_column (self.scroll)
+
+        text_grid.focus (self.view)
+        self.focus (text_grid)
 
     def render (self, frame):
         # FIXME: Do this not every frame but only when the view changes
@@ -90,6 +108,21 @@ class Editor (ui.Grid):
         end = (self.view.start_line + frame.height) / n_lines
         self.scroll.set_position (start, end)
         ui.Grid.render (self, frame)
+
+class PythonConsole (ui.Grid):
+    def __init__ (self, selector):
+        ui.Grid.__init__ (self)
+        console_bar = ui.Bar (unicodedata.lookup ('SNAKE') + ' Python')
+        self.append_row (console_bar)
+        self.console = ui.Console (selector)
+        self.append_row (self.console)
+        self.focus (self.console)
+
+    def run (self, program = None):
+        if program is None:
+            self.console.run (['python3', '-q'])
+        else:
+            self.console.run (['python3', program])
 
 class PrideDisplay (ui.Display):
     def __init__ (self, app, selector, screen):
@@ -111,7 +144,7 @@ class PrideDisplay (ui.Display):
                 return
             elif event.key == ui.Key.F4: # FIXME: Handle in self.app.main_list.handle_event
                 if self.app.main_list.focus_child == self.app.editor:
-                    self.app.main_list.focus (self.app.console)
+                    self.app.main_list.focus (self.app.python_console)
                 else:
                     self.app.main_list.focus (self.app.editor)
                 self.app.update_visibility ()
@@ -142,25 +175,11 @@ class Pride:
         self.main_list = ui.Grid ()
         self.stack.add_child (self.main_list)
 
-        tab_grid = ui.Grid ()
-        tab_grid.set_scale (1.0, 0.0)
-        self.main_list.append_row (tab_grid)
-
-        tab_grid.append_column (ui.Label (unicodedata.lookup ('PAGE FACING UP') + '  ', background = '#0000FF'))
-
-        self.editor_tabs = ui.Tabs ()
-        self.editor_tabs.add_child ('main.py')
-        self.editor_tabs.add_child ('README.md')
-        self.editor_tabs.add_child ('code.txt')
-        tab_grid.append_column (self.editor_tabs)
-
         self.editor = Editor ()
         self.main_list.append_row (self.editor)
 
-        self.console_bar = ui.Bar (unicodedata.lookup ('SNAKE') + ' Python')
-        self.console = ui.Console (self.selector)
-        self.main_list.append_row (self.console_bar)
-        self.main_list.append_row (self.console)
+        self.python_console = PythonConsole (self.selector)
+        self.main_list.append_row (self.python_console)
 
         self.main_list.focus (self.editor)
 
@@ -189,25 +208,23 @@ class Pride:
                 self.editor.buffer.lines.append (line)
         except:
             pass
-        self.console.run (['python3', '-q'])
+        self.python_console.run ()
         self.display.refresh ()
 
         while True:
             events = self.selector.select ()
             for key, mask in events:
                 self.display.handle_selector_event (key, mask)
-                self.console.handle_selector_event (key, mask)
+                self.python_console.console.handle_selector_event (key, mask)
             self.display.refresh ()
 
     def run_program (self):
         f = open ('main.py', 'w')
         f.write ('\n'.join (self.editor.buffer.lines))
         f.close ()
-        self.console.run (['python3', 'main.py'])
+        self.python_console.run ('main.py')
 
     def update_visibility (self):
         focus_child = self.main_list.focus_child
-        self.editor_tabs.visible = not self.fullscreen or focus_child is self.editor
         self.editor.visible = not self.fullscreen or focus_child is self.editor
-        self.console_bar.visible = not self.fullscreen or focus_child is self.console
-        self.console.visible = not self.fullscreen or focus_child is self.console
+        self.python_console.visible = not self.fullscreen or focus_child is self.python_console
