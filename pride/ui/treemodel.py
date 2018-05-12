@@ -15,3 +15,6 @@ class TreeModel:
 
     def get_label (self, index):
         return ''
+
+    def get_item (self, index):
+        return None

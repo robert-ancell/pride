@@ -16,7 +16,7 @@ class Stack (Widget):
         self.set_scale (1.0, 1.0)
 
     def add_child (self, child):
-        self.children.insert (0, child)
+        self.children.append (child)
 
     def raise_child (self, child):
         self.children.remove (child)

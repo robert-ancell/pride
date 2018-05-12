@@ -58,8 +58,9 @@ class HelpDialog (ui.Box):
         grid.add_child (python_logo, 0, 0)
 
 class FileDialog (ui.Box):
-    def __init__ (self):
+    def __init__ (self, callback = None):
         ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, foreground = '#0000FF', background = '#FFFFFF')
+        self.callback = callback
 
         grid = ui.Grid ()
         self.set_child (grid)
@@ -68,9 +69,12 @@ class FileDialog (ui.Box):
         grid.add_child (label, 0, 0)
 
         model = ui.FileModel ()
-        files = ui.TreeView (model)
+        files = ui.TreeView (model, self._file_selected)
         grid.add_child (files, 0, 1)
         grid.focus (files)
+
+    def _file_selected (self, item):
+        self.callback (item)
 
 class FileView (ui.Grid):
     def __init__ (self, path):
@@ -117,33 +121,48 @@ class Editor (ui.Grid):
         self.file_stack = ui.Stack ()
         self.append_row (self.file_stack)
 
-        self.files = []
-
-        for path in ['main.py', 'README.md']:
-            file_view = FileView (path)
-            self.file_stack.add_child (file_view)
-            self.files.append (file_view)
-            self.tabs.add_child (path)
-
+        self.file_views = []
         self.selected = 0
-        self.file_stack.raise_child (self.files[self.selected])
         self.focus (self.file_stack)
+
+    def _find_file (self, path):
+        for (i, file_view) in enumerate (self.file_views):
+            if file_view.path == path:
+                return (i, file_view)
+        return (-1, None)
+
+    def load_file (self, path):
+        (_, file_view) = self._find_file (path)
+        if file_view is not None:
+            return
+        file_view = FileView (path)
+        self.file_stack.add_child (file_view)
+        self.file_views.append (file_view)
+        self.tabs.add_child (path)
+
+    def select_file (self, path):
+        (i, file_view) = self._find_file (path)
+        if file_view is None:
+            return
+        self.selected = i
+        self.tabs.set_selected (i)
+        self.file_stack.raise_child (file_view)
 
     def next_file (self):
         self.selected += 1
-        if self.selected >= len (self.files):
+        if self.selected >= len (self.file_views):
             self.selected = 0
-        self.file_stack.raise_child (self.files[self.selected])
+        self.file_stack.raise_child (self.file_views[self.selected])
         self.tabs.set_selected (self.selected)
 
     def save_file (self):
-        selected_file = self.files[self.selected]
+        selected_file = self.file_views[self.selected]
         f = open (selected_file.path, 'w')
         f.write ('\n'.join (selected_file.buffer.lines))
         f.close ()
 
     def get_path (self):
-        return self.files[self.selected].path
+        return self.file_views[self.selected].path
 
 class PythonConsole (ui.Grid):
     def __init__ (self, selector):
@@ -215,6 +234,8 @@ class Pride:
         self.stack.add_child (self.main_list)
 
         self.editor = Editor ()
+        self.editor.load_file ('main.py')
+        self.editor.load_file ('README.md')
         self.main_list.append_row (self.editor)
 
         self.python_console = PythonConsole (self.selector)
@@ -226,7 +247,7 @@ class Pride:
         self.help_dialog.visible = False
         self.stack.add_child (self.help_dialog)
 
-        self.file_dialog = FileDialog ()
+        self.file_dialog = FileDialog (self._on_file_selected)
         self.file_dialog.visible = False
         self.file_dialog.set_scale (0.5, 0.5)
         self.stack.add_child (self.file_dialog)
@@ -236,6 +257,11 @@ class Pride:
         self.emoji_dialog.select_character = self.select_emoji
         self.emoji_dialog.set_scale (0.5, 0.5)
         self.stack.add_child (self.emoji_dialog)
+
+    def _on_file_selected (self, path):
+        self.file_dialog.visible = False
+        self.editor.load_file (path)
+        self.editor.select_file (path)
 
     def select_emoji (self, character):
         self.editor.view.insert (character)

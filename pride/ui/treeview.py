@@ -11,12 +11,13 @@ from .treemodel import TreeModel
 from .widget import Widget
 
 class TreeView (Widget):
-    def __init__ (self, model = None):
+    def __init__ (self, model = None, callback = None):
         Widget.__init__ (self)
         if model is None:
             self.model = TreeModel ()
         else:
             self.model = model
+        self.callback = callback
         self.set_scale (1.0, 1.0)
         self.selected = 0
         self.start = 0
@@ -30,7 +31,8 @@ class TreeView (Widget):
         elif event.key == Key.DOWN:
             self.selected = min (self.selected + 1, self.model.get_size () - 1)
         elif event.key == Key.ENTER:
-            pass #self.activated ()
+            if self.callback is not None:
+                self.callback (self.model.get_item (self.selected))
 
     def render (self, frame):
         # Scroll display to show cursor

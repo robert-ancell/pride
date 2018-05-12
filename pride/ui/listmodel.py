@@ -14,6 +14,8 @@ class ListModel (TreeModel):
         self.items = []
 
     def add_item (self, label, item = None):
+        if item is None:
+            item = label
         self.items.append ((label, item))
 
     def get_size (self):
@@ -21,3 +23,6 @@ class ListModel (TreeModel):
 
     def get_label (self, index):
         return self.items[index][0]
+
+    def get_item (self, index):
+        return self.items[index][1]

@@ -21,3 +21,6 @@ class FileModel (TreeModel):
 
     def get_label (self, index):
         return self.files[index]
+
+    def get_item (self, index):
+        return self.files[index]
