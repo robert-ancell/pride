@@ -11,6 +11,7 @@ license."""
 import curses
 import selectors
 import unicodedata
+import pathlib
 
 from pride import ui
 
@@ -151,6 +152,18 @@ class Editor (ui.Grid):
                 return (i, file_view)
         return (-1, None)
 
+    def new_file (self):
+        i = 0
+        filename = 'untitled'
+        while True:
+            path = pathlib.Path (filename)
+            if not path.exists ():
+                path.touch ()
+                self.load_file (filename)
+                return filename
+            i += 1
+            filename = 'untitled{}'.format (i)
+
     def load_file (self, path):
         (_, file_view) = self._find_file (path)
         if file_view is not None:
@@ -219,6 +232,10 @@ class PrideDisplay (ui.Display):
                 self.app.file_dialog.visible = not self.app.file_dialog.visible
                 if self.app.file_dialog.visible:
                     self.app.stack.raise_child (self.app.file_dialog)
+                return
+            elif event.key == ui.Key.CTRL_N:
+                path = self.app.editor.new_file ()
+                self.app.editor.select_file (path)
                 return
             elif event.key == ui.Key.F3:
                 self.app.editor.next_file ()
