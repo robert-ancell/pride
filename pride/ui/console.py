@@ -6,9 +6,9 @@
 # version. See http://www.gnu.org/copyleft/gpl.html the full text of the
 # license.
 
+import asyncio
 import os
 import pty
-import selectors
 import signal
 import subprocess
 
@@ -17,30 +17,28 @@ from .textbuffer import TextBuffer
 from .widget import Widget
 
 class Console (Widget):
-    def __init__ (self, selector):
+    def __init__ (self, changed_callback = None):
         Widget.__init__ (self)
-        self.selector = selector
         self.pid = 0
         self.fd = -1
         self.cursor = (0, 0)
-        self.buffer = TextBuffer ()
+        self.buffer = TextBuffer (changed_callback = changed_callback)
         self.set_scale (1.0, 1.0)
 
     def get_size (self):
         return (0, 1)
 
-    def handle_selector_event (self, key, mask):
-        if key.fd == self.fd:
-            if not self.read ():
-                pass
-            # FIXME
-            #self.selector.unregister (self.fd)
-            #self.console.run (['python3', '-q'])
-            #self.selector.register (self.fd, selectors.EVENT_READ)
+    def handle_input (self):
+        if not self.read ():
+            pass
+        # FIXME
+        #asyncio.get_event_loop ().remove_reader (self.fd)
+        #self.console.run (['python3', '-q'])
+        #asyncio.get_event_loop ().add_reader (self.fd, self.handle_input)
 
     def run (self, args):
         if self.pid != 0:
-            self.selector.unregister (self.fd)
+            asyncio.get_event_loop ().remove_reader (self.fd)
 
         self.read_buffer = bytes ()
         last_line = 0
@@ -54,7 +52,7 @@ class Console (Widget):
         if self.pid == 0:
             subprocess.run (args)
             exit ()
-        self.selector.register (self.fd, selectors.EVENT_READ)
+        asyncio.get_event_loop ().add_reader (self.fd, self.handle_input)
 
     def read (self):
         try:

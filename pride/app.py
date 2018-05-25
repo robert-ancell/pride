@@ -8,8 +8,8 @@ license."""
 
 # ＰｒＩＤＥ
 
+import asyncio
 import curses
-import selectors
 import unicodedata
 import pathlib
 
@@ -99,7 +99,8 @@ class FileView (ui.Grid):
 
         self.path = path
 
-        self.buffer = ui.TextBuffer ()
+        self.buffer = ui.TextBuffer (changed_callback = self._file_changed)
+        self.save_handle = None
         self.view = ui.TextView (self.buffer)
         self.append_column (self.view)
         self.scroll = ui.Scroll ()
@@ -112,6 +113,21 @@ class FileView (ui.Grid):
                 self.buffer.lines.append (line)
         except:
             pass
+
+    def save (self):
+        f = open (self.path, 'w')
+        f.write ('\n'.join (self.buffer.lines))
+        f.close ()
+
+    def _file_changed (self):
+        loop = asyncio.get_event_loop ()
+        if self.save_handle is not None:
+            self.save_handle.cancel ()
+        self.save_handle = loop.call_later (1.0, self._save_file)
+
+    def _save_file (self):
+        self.save_handle = None
+        self.save ()
 
     def render (self, frame, theme):
         # FIXME: Do this not every frame but only when the view changes
@@ -192,20 +208,17 @@ class Editor (ui.Grid):
         self.tabs.set_selected (self.selected)
 
     def save_file (self):
-        selected_file = self.file_views[self.selected]
-        f = open (selected_file.path, 'w')
-        f.write ('\n'.join (selected_file.buffer.lines))
-        f.close ()
+        self.file_views[self.selected].save ()
 
     def get_path (self):
         return self.file_views[self.selected].path
 
 class PythonConsole (ui.Grid):
-    def __init__ (self, selector):
+    def __init__ (self, changed_callback = None):
         ui.Grid.__init__ (self)
         console_bar = ui.Bar (unicodedata.lookup ('SNAKE') + ' Python')
         self.append_row (console_bar)
-        self.console = ui.Console (selector)
+        self.console = ui.Console (changed_callback = changed_callback)
         self.append_row (self.console)
         self.focus (self.console)
 
@@ -216,8 +229,8 @@ class PythonConsole (ui.Grid):
             self.console.run (['python3', program])
 
 class PrideDisplay (ui.Display):
-    def __init__ (self, app, selector, screen):
-        ui.Display.__init__ (self, selector, screen)
+    def __init__ (self, app, screen):
+        ui.Display.__init__ (self, screen)
         self.app = app
 
     def handle_event (self, event):
@@ -263,8 +276,7 @@ class PrideDisplay (ui.Display):
 
 class Pride:
     def __init__ (self, screen):
-        self.selector = selectors.DefaultSelector ()
-        self.display = PrideDisplay (self, self.selector, screen)
+        self.display = PrideDisplay (self, screen)
         self.fullscreen = False
 
         self.stack = ui.Stack ()
@@ -278,7 +290,9 @@ class Pride:
         self.editor.load_file ('README.md')
         self.main_list.append_row (self.editor)
 
-        self.python_console = PythonConsole (self.selector)
+        def console_changed ():
+            self.display.refresh ()
+        self.python_console = PythonConsole (console_changed)
         self.main_list.append_row (self.python_console)
 
         self.main_list.focus (self.editor)
@@ -311,12 +325,11 @@ class Pride:
         self.python_console.run ()
         self.display.refresh ()
 
-        while True:
-            events = self.selector.select ()
-            for key, mask in events:
-                self.display.handle_selector_event (key, mask)
-                self.python_console.console.handle_selector_event (key, mask)
-            self.display.refresh ()
+        loop = asyncio.get_event_loop ()
+        try:
+            loop.run_forever ()
+        finally:
+            loop.close ()
 
     def run_program (self):
         self.editor.save_file ()

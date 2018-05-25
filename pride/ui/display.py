@@ -6,8 +6,8 @@
 # version. See http://www.gnu.org/copyleft/gpl.html the full text of the
 # license.
 
+import asyncio
 import curses
-import selectors
 import sys
 
 from .frame import Frame
@@ -18,21 +18,16 @@ from .characterinputevent import CharacterInputEvent
 from .theme import Theme
 
 class Display (Container):
-    def __init__ (self, selector, screen):
+    def __init__ (self, screen):
         Container.__init__ (self)
-        self.selector = selector
         self.screen = screen
         self.child = None
-        self.selector.register (sys.stdin, selectors.EVENT_READ)
+        asyncio.get_event_loop ().add_reader (sys.stdin, self.handle_input)
         self.screen.nodelay (True)
         self.theme = Theme ()
 
     def set_child (self, child):
         self.child = child
-
-    def handle_selector_event (self, key, mask):
-        if key.fileobj == sys.stdin:
-            self.handle_input ()
 
     def refresh (self):
         (max_lines, max_width) = self.screen.getmaxyx ()
@@ -105,6 +100,7 @@ class Display (Container):
         while True:
             key = self.screen.getch ()
             if key == -1:
+                self.refresh () # FIXME: Do only when contents changed
                 return
             if key >= 0x20 and key <= 0x7F:
                 self.handle_event (CharacterInputEvent (key)) # FIXME: Handle UTF-8
