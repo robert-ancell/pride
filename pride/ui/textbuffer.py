@@ -70,16 +70,12 @@ def _implode_line (line):
     return imploded
 
 class TextBuffer:
-    def __init__ (self):
+    def __init__ (self, changed_callback = None):
+        self.changed_callback = changed_callback
         self.lines = []
 
     def clear (self):
         self.lines = []
-
-    # Ensure lines exists to requested position
-    def _ensure_line (self, y):
-        while len (self.lines) <= y:
-            self.lines.append ('')
 
     def position_left (self, x, y):
         if y >= len (self.lines):
@@ -109,6 +105,18 @@ class TextBuffer:
             last_position = p
         return p
 
+    # Ensure lines exists to requested position
+    def _ensure_line (self, y):
+        while len (self.lines) <= y:
+            self.lines.append ('')
+
+    def _update_line (self, y, line):
+        if self.lines[y] == line:
+            return
+        self.lines[y] = line
+        if self.changed_callback is not None:
+            self.changed_callback ()
+
     def insert (self, x, y, text, append_double_width = True):
         self._ensure_line (y)
         exploded = _explode_line (self.lines[y], x)
@@ -124,7 +132,7 @@ class TextBuffer:
                 exploded.insert (x + 1, text)
         else:
             exploded.insert (x, text)
-        self.lines[y] = _implode_line (exploded)
+        self._update_line (y, _implode_line (exploded))
         return step
 
     def overwrite (self, x, y, text):
@@ -136,18 +144,18 @@ class TextBuffer:
             exploded = exploded[:x - 1] + ' ' + exploded_text + exploded[x + len (exploded_text):]
         else:
             exploded = exploded[:x] + exploded_text + exploded[x + get_line_width (exploded_text):]
-        self.lines[y] = _implode_line (exploded)
+        self._update_line (y, _implode_line (exploded))
 
     def split_line (self, x, y):
         self._ensure_line (y)
         exploded = _explode_line (self.lines[y], x)
-        self.lines[y] = _implode_line (exploded[:x])
+        self._update_line (y, _implode_line (exploded[:x]))
         self.lines.insert (y + 1, _implode_line (exploded[x:]))
 
     def merge_lines (self, y):
         if y + 1 >= len (self.lines):
             return
-        self.lines[y] = self.lines[y] + self.lines[y + 1]
+        self._update_line (y, self.lines[y] + self.lines[y + 1])
         self.lines.pop (y + 1)
 
     def delete_left (self, x, y):
@@ -162,7 +170,7 @@ class TextBuffer:
         else:
             exploded.pop (x - 1)
             step = -1
-        self.lines[y] = _implode_line (exploded)
+        self._update_line (y, _implode_line (exploded))
         return step
 
     def delete_right (self, x, y):
@@ -173,7 +181,7 @@ class TextBuffer:
             exploded.pop (x - 1)
         else:
             exploded.pop (x)
-        self.lines[y] = _implode_line (exploded)
+        self._update_line (y, _implode_line (exploded))
         return 0
 
 if __name__ == '__main__':
