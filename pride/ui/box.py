@@ -38,7 +38,7 @@ class Box (Container):
             (width, height) = self.child.get_size ()
         else:
             (width, height) = (0, 0)
-        return (width + 2, height + 2)
+        return (width + 4, height + 2)
 
     def render (self, frame, theme):
         if self.foreground is None:
@@ -51,8 +51,8 @@ class Box (Container):
             background = self.background
         frame.clear (background)
         if self.child is not None and self.child.visible:
-            child_frame = self.render_child (self.child, frame.width - 2, frame.height - 2, theme)
-            frame.composite (1, 1, child_frame)
+            child_frame = self.render_child (self.child, frame.width - 4, frame.height - 2, theme)
+            frame.composite (2, 1, child_frame)
         if self.style == BoxStyle.SQUARE:
             top_left = '┌'
             top_right = '┐'
