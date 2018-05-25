@@ -14,7 +14,15 @@ from .treemodel import TreeModel
 class FileModel (TreeModel):
     def __init__ (self, path = '.'):
         TreeModel.__init__ (self)
-        self.files = os.listdir (path)
+        self.files = []
+        for filename in os.listdir (path):
+            # Ignore hidden files
+            if filename.startswith ('.'):
+                continue
+            # Ignore backups
+            if filename.endswith ('~'):
+                continue
+            self.files.append (filename)
         self.files.sort ()
 
     def get_size (self):
