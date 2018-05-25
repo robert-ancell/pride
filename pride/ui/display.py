@@ -166,6 +166,46 @@ class Display (Container):
                 self.handle_event (KeyInputEvent (Key.CTRL_E))
             elif key == 6:
                 self.handle_event (KeyInputEvent (Key.CTRL_F))
+            elif key == 7:
+                self.handle_event (KeyInputEvent (Key.CTRL_G))
+            elif key == 8:
+                self.han9le_event (KeyInputEvent (Key.CTRL_H))
+            elif key == 10:
+                self.handle_event (KeyInputEvent (Key.CTRL_I))
+            elif key == 10:
+                self.handle_event (KeyInputEvent (Key.CTRL_J))
+            elif key == 11:
+                self.handle_event (KeyInputEvent (Key.CTRL_K))
+            elif key == 12:
+                self.handle_event (KeyInputEvent (Key.CTRL_L))
+            elif key == 13:
+                self.handle_event (KeyInputEvent (Key.CTRL_M))
+            elif key == 14:
+                self.handle_event (KeyInputEvent (Key.CTRL_N))
+            elif key == 15:
+                self.handle_event (KeyInputEvent (Key.CTRL_O))
+            elif key == 16:
+                self.handle_event (KeyInputEvent (Key.CTRL_P))
+            elif key == 17:
+                self.handle_event (KeyInputEvent (Key.CTRL_Q))
+            elif key == 18:
+                self.handle_event (KeyInputEvent (Key.CTRL_R))
+            elif key == 19:
+                self.handle_event (KeyInputEvent (Key.CTRL_S))
+            elif key == 20:
+                self.handle_event (KeyInputEvent (Key.CTRL_T))
+            elif key == 21:
+                self.handle_event (KeyInputEvent (Key.CTRL_U))
+            elif key == 22:
+                self.handle_event (KeyInputEvent (Key.CTRL_V))
+            elif key == 23:
+                self.handle_event (KeyInputEvent (Key.CTRL_W))
+            elif key == 24:
+                self.handle_event (KeyInputEvent (Key.CTRL_X))
+            elif key == 25:
+                self.handle_event (KeyInputEvent (Key.CTRL_Y))
+            elif key == 26:
+                self.handle_event (KeyInputEvent (Key.CTRL_Z))
             elif key == 337:
                 self.handle_event (KeyInputEvent (Key.SHIFT_UP))
             elif key == 336:

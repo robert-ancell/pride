@@ -59,7 +59,7 @@ class HelpDialog (ui.Box):
 
         label = ui.Label ('F1 - Help screen', '#000000')
         grid.append_row (label)
-        label = ui.Label ('F2 - Load file', '#000000')
+        label = ui.Label ('F2 - Menu', '#000000')
         grid.append_row (label)
         label = ui.Label ('F3 - Next file', '#000000')
         grid.append_row (label)
@@ -215,7 +215,7 @@ class PrideDisplay (ui.Display):
                 if self.app.help_dialog.visible:
                     self.app.stack.raise_child (self.app.help_dialog)
                 return
-            elif event.key == ui.Key.F2:
+            elif event.key == ui.Key.CTRL_O:
                 self.app.file_dialog.visible = not self.app.file_dialog.visible
                 if self.app.file_dialog.visible:
                     self.app.stack.raise_child (self.app.file_dialog)
