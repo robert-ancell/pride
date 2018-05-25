@@ -17,7 +17,7 @@ class BoxStyle:
     WIDE   = 'wide'
 
 class Box (Container):
-    def __init__ (self, style = BoxStyle.CURVED, foreground = None, background = None):
+    def __init__ (self, style = BoxStyle.WIDE, foreground = None, background = None):
         Container.__init__ (self)
         self.child = None
         self.style = style
@@ -26,6 +26,15 @@ class Box (Container):
 
     def set_child (self, child):
         self.child = child
+
+    def set_style (self, style):
+        self.style = style
+
+    def set_foreground (self, foreground):
+        self.foreground = foreground
+
+    def set_background (self, background):
+        self.background = background
 
     def handle_event (self, event):
         if self.child is None:

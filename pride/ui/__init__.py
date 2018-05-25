@@ -1,6 +1,7 @@
 from .bar import Bar
 from .box import Box
 from .box import BoxStyle
+from .button import Button
 from .console import Console
 from .container import Container
 from .display import Display

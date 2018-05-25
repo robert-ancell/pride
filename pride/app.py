@@ -50,7 +50,7 @@ class PythonLogo (ui.Widget):
 
 class HelpDialog (ui.Box):
     def __init__ (self):
-        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, background = '#FFFFFF')
+        ui.Box.__init__ (self, background = '#FFFFFF')
 
         grid = ui.Grid ()
         self.set_child (grid)
@@ -74,9 +74,30 @@ class HelpDialog (ui.Box):
         python_logo = PythonLogo ()
         grid.append_row (python_logo)
 
+class MenuDialog (ui.Box):
+    def __init__ (self):
+        ui.Box.__init__ (self, background = '#FFFFFF')
+
+        grid = ui.Grid ()
+        grid.set_scale (1.0, 1.0)
+        self.set_child (grid)
+
+        label = ui.Label ('Menu', '#000000')
+        grid.append_row (label)
+
+        button = ui.Button ('New File', 'Ctrl+N', background = '#FFFFFF')
+        button.set_selected (True)
+        grid.append_row (button)
+
+        button = ui.Button ('Foo', background = '#FFFFFF')
+        grid.append_row (button)
+
+        button = ui.Button ('Options', background = '#FFFFFF')
+        grid.append_row (button)
+
 class FileDialog (ui.Box):
     def __init__ (self, callback = None):
-        ui.Box.__init__ (self, style = ui.BoxStyle.WIDE, background = '#FFFFFF')
+        ui.Box.__init__ (self, background = '#FFFFFF')
         self.callback = callback
 
         grid = ui.Grid ()
@@ -241,6 +262,11 @@ class PrideDisplay (ui.Display):
                 if self.app.help_dialog.visible:
                     self.app.stack.raise_child (self.app.help_dialog)
                 return
+            elif event.key == ui.Key.F2:
+                self.app.menu_dialog.visible = not self.app.menu_dialog.visible
+                if self.app.menu_dialog.visible:
+                    self.app.stack.raise_child (self.app.menu_dialog)
+                return
             elif event.key == ui.Key.CTRL_O:
                 self.app.file_dialog.visible = not self.app.file_dialog.visible
                 if self.app.file_dialog.visible:
@@ -300,6 +326,11 @@ class Pride:
         self.help_dialog = HelpDialog ()
         self.help_dialog.visible = False
         self.stack.add_child (self.help_dialog)
+
+        self.menu_dialog = MenuDialog ()
+        self.menu_dialog.visible = False
+        self.menu_dialog.set_scale (0.5, 0.5)
+        self.stack.add_child (self.menu_dialog)
 
         self.file_dialog = FileDialog (self._on_file_selected)
         self.file_dialog.visible = False
