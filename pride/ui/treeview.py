@@ -34,6 +34,10 @@ class TreeView (Widget):
         elif event.key == Key.ENTER:
             if self.callback is not None:
                 self.callback (self.model.get_item (self.selected))
+        else:
+            return False
+
+        return True
 
     def render (self, frame, theme):
         # Scroll display to show cursor

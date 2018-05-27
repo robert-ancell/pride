@@ -227,6 +227,7 @@ class Console (Widget):
 
     def handle_character_event (self, event):
         os.write (self.fd, bytes (chr (event.character), 'utf-8'))
+        return True
 
     def handle_key_event (self, event):
         if event.key == Key.ENTER:
@@ -249,3 +250,7 @@ class Console (Widget):
             os.write (self.fd, '\033[H'.encode ('ascii'))
         elif event.key == Key.END:
             os.write (self.fd, '\033[F'.encode ('ascii'))
+        else:
+            return False
+
+        return True

@@ -8,18 +8,21 @@
 
 from .container import Container
 from .frame import Frame
+from .keyinputevent import Key
+from .keyinputevent import KeyInputEvent
 from .widget import Widget
 
 class Grid (Container):
     def __init__ (self):
         Container.__init__ (self)
-        self.focus_child = None
         self.children = {}
         self.set_scale (1.0, 1.0)
 
     def add_child (self, child, x, y):
         assert (isinstance (child, Widget))
         self.children[(x, y)] = child
+        if self.focus_child is None:
+            self.focus (child)
 
     def append_row (self, child):
         assert (isinstance (child, Widget))
@@ -36,9 +39,6 @@ class Grid (Container):
             if x >= child_x:
                 child_x = x + 1
         self.add_child (child, child_x, 0)
-
-    def focus (self, child):
-        self.focus_child = child
 
     def get_size (self):
         grid_width = 0
@@ -71,10 +71,16 @@ class Grid (Container):
 
         return (width, height)
 
+    def _focus_next (self):
+        return True
+
     def handle_event (self, event):
-        if self.focus_child is None:
-            return
-        self.focus_child.handle_event (event)
+        if Container.handle_event (self, event):
+            return True
+        elif isinstance (event, KeyInputEvent) and event.key == Key.TAB:
+            return self.focus_next ()
+        else:
+            return False
 
     def render (self, frame, theme):
         frame.clear ()

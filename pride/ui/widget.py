@@ -7,6 +7,7 @@
 # license.
 
 from .characterinputevent import CharacterInputEvent
+from .focusevent import FocusEvent
 from .frame import Frame
 from .keyinputevent import KeyInputEvent
 
@@ -17,6 +18,7 @@ class Widget:
         self.x_scale = 0.0
         self.y_align = 0.5
         self.y_scale = 0.0
+        self.has_focus = False
         self._child_frame = None
 
     def set_align (self, x_align, y_align):
@@ -30,17 +32,27 @@ class Widget:
     def get_size (self):
         return (0, 0)
 
+    def set_focus (self, has_focus):
+        self.handle_event (FocusEvent (has_focus))
+
     def handle_event (self, event):
         if isinstance (event, CharacterInputEvent):
-            self.handle_character_event (event)
+            return self.handle_character_event (event)
         elif isinstance (event, KeyInputEvent):
-            self.handle_key_event (event)
+            return self.handle_key_event (event)
+        elif isinstance (event, FocusEvent):
+            return self.handle_focus_event (event)
+        else:
+            return False
 
     def handle_character_event (self, event):
-        pass
+        return False
 
     def handle_key_event (self, event):
-        pass
+        return False
+
+    def handle_focus_event (self, event):
+        return False
 
     def render (self, frame, theme):
         pass

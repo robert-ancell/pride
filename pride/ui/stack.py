@@ -7,20 +7,32 @@
 # license.
 
 from .frame import Frame
-from .widget import Widget
+from .container import Container
 
-class Stack (Widget):
+class Stack (Container):
     def __init__ (self):
-        Widget.__init__ (self)
+        Container.__init__ (self)
         self.children = []
         self.set_scale (1.0, 1.0)
 
+    def _update_focus (self):
+        focus_child = None
+        for child in self.children:
+            if child.visible:
+                focus_child = child
+                break
+        self.focus (focus_child)
+
     def add_child (self, child):
         self.children.append (child)
+        self._update_focus ()
 
     def raise_child (self, child):
+        if self.children[0] is child:
+            return
         self.children.remove (child)
         self.children.insert (0, child)
+        self._update_focus ()
 
     def get_size (self):
         width = 0
@@ -31,14 +43,8 @@ class Stack (Widget):
             height = max (height, h)
         return (width, height)
 
-    def handle_event (self, event):
-        open ('debug.log', 'a').write ('stack key {}\n'.format (event))
-        for child in self.children:
-            if child.visible:
-                child.handle_event (event)
-                return
-
     def render (self, frame, theme):
+        self._update_focus ()
         # FIXME: Work out if widgets would be covered and skip rendering
         # FIXME: Take colour out of covered children
         have_cursor = False

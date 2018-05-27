@@ -11,6 +11,7 @@ from .characterinputevent import CharacterInputEvent
 from .keyinputevent import Key
 from .keyinputevent import KeyInputEvent
 from .filemodel import FileModel
+from .focusevent import FocusEvent
 from .grid import Grid
 from .label import Label
 from .listmodel import ListModel

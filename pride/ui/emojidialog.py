@@ -95,10 +95,15 @@ class EmojiDialog (Widget):
             self.selected = (self.selected[0], max (self.selected[1] - 1, 0))
         elif event.key == Key.RIGHT:
             self.selected = (self.selected[0], min (self.selected[1] + 1, self.n_cols - 1))
+        else:
+            return False
+
+        return True
 
     def handle_character_event (self, event):
         self.filter += chr (event.character)
         self.selected = (0, 0)
+        return True
 
     def render (self, frame, theme):
         matched_characters = self.get_characters (self.filter)

@@ -130,6 +130,7 @@ class TextView (Widget):
 
     def handle_character_event (self, event):
         self.insert (chr (event.character))
+        return True
 
     def handle_key_event (self, event):
         if event.key == Key.BACKSPACE:

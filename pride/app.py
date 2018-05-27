@@ -85,15 +85,21 @@ class MenuDialog (ui.Box):
         label = ui.Label ('Menu', '#000000')
         grid.append_row (label)
 
-        button = ui.Button ('New File', 'Ctrl+N', background = '#FFFFFF')
-        button.set_selected (True)
+        button = ui.Button ('New File', 'Ctrl+N', background = '#FFFFFF', clicked_callback = self._new_file_clicked)
         grid.append_row (button)
+        grid.focus (button)
 
         button = ui.Button ('Foo', background = '#FFFFFF')
         grid.append_row (button)
 
-        button = ui.Button ('Options', background = '#FFFFFF')
+        button = ui.Button ('Options', background = '#FFFFFF', clicked_callback = self._options_clicked)
         grid.append_row (button)
+
+    def _new_file_clicked (self):
+        self.visible = False
+
+    def _options_clicked (self):
+        self.visible = False
 
 class FileDialog (ui.Box):
     def __init__ (self, callback = None):
@@ -261,44 +267,44 @@ class PrideDisplay (ui.Display):
                 self.app.help_dialog.visible = not self.app.help_dialog.visible
                 if self.app.help_dialog.visible:
                     self.app.stack.raise_child (self.app.help_dialog)
-                return
+                return True
             elif event.key == ui.Key.F2:
                 self.app.menu_dialog.visible = not self.app.menu_dialog.visible
                 if self.app.menu_dialog.visible:
                     self.app.stack.raise_child (self.app.menu_dialog)
-                return
+                return True
             elif event.key == ui.Key.CTRL_O:
                 self.app.file_dialog.visible = not self.app.file_dialog.visible
                 if self.app.file_dialog.visible:
                     self.app.stack.raise_child (self.app.file_dialog)
-                return
+                return True
             elif event.key == ui.Key.CTRL_N:
                 path = self.app.editor.new_file ()
                 self.app.editor.select_file (path)
-                return
+                return True
             elif event.key == ui.Key.F3:
                 self.app.editor.next_file ()
-                return
+                return True
             elif event.key == ui.Key.F4: # FIXME: Handle in self.app.main_list.handle_event
                 if self.app.main_list.focus_child == self.app.editor:
                     self.app.main_list.focus (self.app.python_console)
                 else:
                     self.app.main_list.focus (self.app.editor)
                 self.app.update_visibility ()
-                return
+                return True
             elif event.key == ui.Key.F5: # FIXME: Handle in self.app.main_list.handle_event
                 self.app.run_program ()
-                return
+                return True
             elif event.key == ui.Key.F8: # F11?
                 self.app.fullscreen = not self.app.fullscreen
                 self.app.update_visibility ()
-                return
+                return True
             elif event.key == ui.Key.INSERT:
                 self.app.emoji_dialog.visible = not self.app.emoji_dialog.visible
                 self.app.stack.raise_child (self.app.emoji_dialog)
-                return
+                return True
 
-        self.app.stack.handle_event (event)
+        return self.app.stack.handle_event (event)
 
 class Pride:
     def __init__ (self, screen):

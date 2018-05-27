@@ -8,12 +8,16 @@
 
 from .box import Box
 from .box import BoxStyle
+from .focusevent import FocusEvent
 from .grid import Grid
+from .keyinputevent import Key
+from .keyinputevent import KeyInputEvent
 from .label import Label
 
 class Button (Box):
-    def __init__ (self, text, shortcut_text = '', background = None):
-        Box.__init__ (self, background = background)
+    def __init__ (self, text, shortcut_text = '', background = None, clicked_callback = None):
+        Box.__init__ (self, foreground = '#000000', background = background, style = BoxStyle.CURVED)
+        self.clicked_callback = clicked_callback
         self.grid = Grid ()
         self.set_child (self.grid)
         label = Label (text, foreground = '#000000')
@@ -21,12 +25,23 @@ class Button (Box):
         if shortcut_text != '':
             label = Label (' ' + shortcut_text, foreground = '#C0C0C0')
             self.grid.append_column (label)
-        self.set_selected (False)
 
-    def set_selected (self, is_selected):
-        if is_selected:
-            self.set_style (BoxStyle.BOLD)
-            self.set_foreground ('#FF0000')
+    def handle_event (self, event):
+        open ('debug.log', 'a').write ('button event {}\n'.format (event))
+        if isinstance (event, FocusEvent):
+            if event.has_focus:
+                self.set_style (BoxStyle.BOLD)
+                self.set_foreground ('#FF0000')
+            else:
+                self.set_style (BoxStyle.CURVED)
+                self.set_foreground ('#000000')
+            return True
+        elif isinstance (event, KeyInputEvent):
+            if event.key == Key.ENTER:
+                if self.clicked_callback is not None:
+                    self.clicked_callback ()
+                return True
+            else:
+                return False
         else:
-            self.set_style (BoxStyle.CURVED)
-            self.set_foreground ('#000000')
+            return False

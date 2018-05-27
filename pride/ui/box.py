@@ -26,6 +26,7 @@ class Box (Container):
 
     def set_child (self, child):
         self.child = child
+        self.focus (child)
 
     def set_style (self, style):
         self.style = style
@@ -35,12 +36,6 @@ class Box (Container):
 
     def set_background (self, background):
         self.background = background
-
-    def handle_event (self, event):
-        if self.child is None:
-            return
-        if self.child.visible:
-            self.child.handle_event (event)
 
     def get_size (self):
         if self.child is not None and self.child.visible:
