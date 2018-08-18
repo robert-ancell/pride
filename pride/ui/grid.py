@@ -71,7 +71,7 @@ class Grid (Container):
 
         return (width, height)
 
-    def _focus_next (self):
+    def focus_next (self):
         return True
 
     def handle_event (self, event):
