@@ -61,6 +61,8 @@ class Console (Widget):
             os.close (self.fd) # FIXME: Should unregister fd
             return False
 
+        #open ('debug.log', 'a').write ('processing {}\n'.format (repr (self.read_buffer)))
+
         # Process data
         while len (self.read_buffer) > 0:
             c = self.read_buffer[0]
@@ -144,9 +146,24 @@ class Console (Widget):
                     #elif code == 'X': # ECH - erase characters
                     else:
                         open ('debug.log', 'a').write ('Unknown CSI code={} params={}\n'.format (code, params))
+                # ANSI OSC (Operating System Command)
+                elif self.read_buffer[1] == ord (']'):
+                    end = 2
+                    def is_osc_end (c):
+                        return c <= 0x1F
+                    while end < len (self.read_buffer) and not is_osc_end (self.read_buffer[end]):
+                        end += 1
+                    if end >= len (self.read_buffer):
+                        return True # Not got full sequence, wait for more data
+
+                    code = chr (self.read_buffer[end])
+                    #open ('debug.log', 'a').write ('console OSC code={}\n'.format (code))
+                    self.read_buffer = self.read_buffer[end + 1:]
+
+                    open ('debug.log', 'a').write ('Unknown OSC code={}\n'.format (code))
                 else:
                     # FIXME
-                    open ('debug.log', 'a').write ('Unknown escape code {}\n'.format (c))
+                    open ('debug.log', 'a').write ('Unknown escape code {}\n'.format (self.read_buffer[1]))
                     self.read_buffer = self.read_buffer[1:]
             elif c == 0x07: # BEL
                 # FIXME: Flash bell symbol or similar?
